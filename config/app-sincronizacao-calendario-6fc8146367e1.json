@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "app-sincronizacao-calendario",
+  "private_key_id": "6fc8146367e1f86c1e866a4ff37fa059f97cd2ad",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDPE2t8KoAzdwVD\nKb4/lXQ/rkMDTkgjkLD2OUnwZYVO5CMVkmBZ1oBPsvQU/XkmKPPl5c3xqKUJY5kT\nR183h9SzvnRfosQVqyt+s9chfUvxY1YrUUUUxWPqr6yeUhLSWvV0Nb+Xn3X7Kdt9\nbOAgv47VaNmnBXaWJpu07qIrVEJ4CPVbm+4HLqYltSiisdQqy0nwSpISKbYN9pBY\n53ebzrjAdsiVGYtrAUQGcui6r1kkEIGiheXNBROazQu7jx+ItheyCL0XqE3EBp9u\npdaruIb2KzptbL0vo33qjPfrr1dwvn2alVgtnlJg/JWCeclKl68zSUstGMC4XlpH\nG8j0IUs1AgMBAAECggEAAtUU9B53dny+6ms8xZ+J3n34oNKjQ3BRkQqzgxVT1A6h\nNjh9fqb8FX+PYjVCBAbdzREuNQU+GQcWmoM2VKZgSExwYRmj3KIDO4CwRUCXOOCQ\nsi/jaOLGMnMTZw1Zz6ZuhCPzNPMeJ0/pOyaZQJWb4rOHOdZmB9FmwLknKCwKLfHG\nVEiv1w1FpzOn7lwQ1BzWxMVOBt6R53RIckzaIuQk/sFnCWTflFz4WRIXVMl43c0e\nVGj32KD8ebeDVMXx5QJllEn3xDRYu8k++RWQL3gT3O9E+vtqLU0aqDfrOEHs49Vb\nZG7pLKmarTjyN6t3yAvb/rzxvmhcyeJTIPxi8qlxDwKBgQD/qUQLoSe2usmPguL0\n0umFW31InVL6QQa2vCXzEieBYnU21F2usV6/47Lq1RhOihMQzwzVJuraIVRgxOe1\nmIFKSEVZJDEwr3ZkLItNOouuZLrN4/h3AuypIiiMJfmQig/sANou+AuVYPI0dgVS\ndmRyZzSYlqbJfkEGKoTVgJJL0wKBgQDPWavYU/1WNyXcQnCKov9VKjXEWCTTAfRp\n7LrPnjJCwgtrkdsE2a5VuSl5vxeXsqEjjbK/ghQBzVrplo6pq77rNClpAGZiPhFI\nZx/ML14rxZ2m/Vth/da2ioAlr4Bz6YrCLsZBIv3kbSrDOQ4oL9iueR2AZOZYzLB/\nGUfXpbzP1wKBgQDXMyaY120zbeUODPF3fTWd0FYT0oGvLx80oAkdotFoInVh0r6M\ntrZ3tXW8H+VW7vh/dJlrrlePhvCciAI2pIln+o+NKl7RiVCRn8EeH8LF5/oqJtPV\ncbu93ofc+HYqyVv/nvQJBzfQ5Irbx+BQ+mEwv1jRfDYmc0TOqOmpQZFjiwKBgBo6\ne5RXu3oGa9GazeWbjLTXLAn0JGRUoPgtK8xLdIwhQ5SN1KieaIELdQWjeHaF8AAx\nUmULLUC1G0Tk+JLZ2MKjzIEtvcW7mDASa2FGtKDQ1IplDgQtOdXJW0BpHNSMvDKn\n/AgNRxR4AqrDMtk+hCg9xc+R89lTuxe4uO+8VU/tAoGBAKiuSZSfw2eEVtc+DCOB\nYV2YV53JR6jPDLV7PqTQG4GGy73xv56GQiABaP4b0LJxDAQYzYb8mJbLlwxh0qWP\nHlxlTkOBTXYEXBzoP33szfRgcp1/LnzsXr0Zh/xyxE9vh1Dsxnr10zZ/U13tWY7D\ngfRq9qXkBFVkY2qmUR2jMhZ5\n-----END PRIVATE KEY-----\n",
+  "client_email": "meu-robo-calendario-845@app-sincronizacao-calendario.iam.gserviceaccount.com",
+  "client_id": "106126826307070075343",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/meu-robo-calendario-845%40app-sincronizacao-calendario.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

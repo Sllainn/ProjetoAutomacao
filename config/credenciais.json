@@ -1,0 +1,12 @@
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+
+# Aponta para o arquivo JSON que você salvou
+caminho_json = './config/credenciais-google.json' # <-- O caminho do seu arquivo
+escopos = ['https://www.googleapis.com/auth/calendar']
+
+credenciais = service_account.Credentials.from_service_account_file(
+    caminho_json, scopes=escopos)
+
+calendar = build('calendar', 'v3', credentials=credenciais)
+# Pronto para usar!
