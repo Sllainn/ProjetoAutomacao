@@ -35,7 +35,8 @@ class CalendarEvent(Base):
     __tablename__ = "calendar_events"
 
     event_id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    calendar_id: Mapped[Optional[str]] = mapped_column(String(255), ForeignKey("calendar_channels.resource_id"), nullable=True)
+    # Ajustado para aceitar nulo caso o canal não esteja pré-cadastrado na tabela calendar_channels
+    calendar_id: Mapped[Optional[str]] = mapped_column(String(255), ForeignKey("calendar_channels.resource_id", ondelete="SET NULL"), nullable=True)
     titulo: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     start_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

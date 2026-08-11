@@ -21,12 +21,7 @@ def sincronizacao_completa_banco():
 
         print(f"🚀 Iniciando Carga Total do Google Calendar para: {EMAIL_AGENDA}")
 
-        # Reseta os tokens antigos para garimpar todos os registros
-        db.query(CalendarEvent).update({CalendarEvent.sync_token: None})
-        db.commit()
-
         page_token = None
-        next_sync_token = None
         total_processados = 0
         pagina = 1
 
@@ -56,11 +51,9 @@ def sincronizacao_completa_banco():
                 start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00')) if start_str else None
                 end_dt = datetime.fromisoformat(end_str.replace('Z', '+00:00')) if end_str else None
 
-                # Busca o evento na tabela pai
                 evento_db = db.query(CalendarEvent).filter(CalendarEvent.event_id == event_id).first()
 
                 if not evento_db:
-                    # Cria o registro mesmo se for cancelado para garantir a integridade da Foreign Key
                     evento_db = CalendarEvent(
                         event_id=event_id,
                         calendar_id=EMAIL_AGENDA,
@@ -76,10 +69,8 @@ def sincronizacao_completa_banco():
                     evento_db.start_time = start_dt
                     evento_db.end_time = end_dt
 
-                # Garante que o evento pai seja salvo na tabela `calendar_events`
                 db.flush()
 
-                # Registra a versão JSON na tabela filha `event_versions`
                 try:
                     nova_versao = EventVersion(
                         event_id=event_id,
@@ -92,26 +83,16 @@ def sincronizacao_completa_banco():
 
                 total_processados += 1
 
-            # Confirmação transacional por lote de página
             db.commit()
 
             page_token = res.get('nextPageToken')
             if not page_token:
-                next_sync_token = res.get('nextSyncToken')
                 break
             
             pagina += 1
 
-        # Grava o token de sincronização oficial na base após varrer todas as páginas
-        if next_sync_token:
-            ultimo_evento = db.query(CalendarEvent).first()
-            if ultimo_evento:
-                ultimo_evento.sync_token = next_sync_token
-                db.commit()
-
         print(f"\n✅ SINCRONIZAÇÃO TOTAL CONCLUÍDA COM SUCESSO!")
         print(f"📊 Total de eventos processados e salvos no PostgreSQL: {total_processados}")
-        print(f"🔑 Novo SyncToken ativo gravado: {next_sync_token}")
 
     except Exception as e:
         db.rollback()
