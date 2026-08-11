@@ -37,8 +37,10 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
     print("🛑 APScheduler desligado.")
 
-app = FastAPI(title="FETT Calendar & WhatsApp Sync API", lifespan=lifespan)
+# redirect_slashes=False evita que o FastAPI bloqueie ou mude requisições GET com/sem barra no final
+app = FastAPI(title="FETT Calendar & WhatsApp Sync API", lifespan=lifespan, redirect_slashes=False)
 
+# Inclui os endpoints do WhatsApp (/webhook)
 app.include_router(webhook_router)
 
 @app.get("/")
