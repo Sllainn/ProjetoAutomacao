@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.parser import parsear_descricao_evento  # Importação do parser de descrições
 
 from app.database import SessionLocal
-from app.models import CalendarEvent, EventVersion, CalendarChannel, ReminderJobs
+from app.models import CalendarEvent, EventVersion, CalendarChannel, ReminderJob
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CAMINHO_JSON = os.path.join(BASE_DIR, 'config', 'app-sincronizacao-calendario-6fc8146367e1.json')

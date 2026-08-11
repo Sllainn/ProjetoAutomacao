@@ -1,43 +1,46 @@
 import time
 import random
+import asyncio
+import os
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import ReminderJob, CalendarEvent
-from app.logger import registrar_log  # Importação do logger estruturado
+from app.logger import registrar_log  
+from app.whatsapp import OfficialWhatsAppClient
 
 def executar_worker_ciclo():
     """
     Worker concorrente seguro para processamento de lembretes pendentes 
     conforme as regras 205 a 210 e validação de versão (regras 206, 221),
-    integrado com logs estruturados (XIX).
+    integrado com logs estruturados (XIX) e envio real via WABA (OfficialWhatsAppClient).
     """
     db = SessionLocal()
     try:
         # 1. Seleção concorrente segura utilizando FOR UPDATE SKIP LOCKED
         jobs = db.query(ReminderJob).filter(
-            ReminderJob.status.in_(["pending", "retry"]),
-            ReminderJob.scheduled_at <= datetime.now(timezone.utc)
+            ReminderJob.status.in_(["pending", "retry", "PENDING", "RETRY"]),
+            ReminderJob.scheduled_time <= datetime.now(timezone.utc)
         ).with_for_update(skip_locked=True).limit(20).all()
 
         if not jobs:
             return
 
         for job in jobs:
-            correlation_id = f"corr_job_{job.id}"
+            correlation_id = f"corr_job_{job.job_id}"
 
-            # Regra 205: Marcar como processing e adquirir lease antes da chamada
+            # Regra 205: Marcar como processing e atualizar attempt_count
             job.status = "processing"
-            job.attempts = (job.attempts or 0) + 1
+            job.attempt_count = (job.attempt_count or 0) + 1
             db.commit()
 
             registrar_log(
                 event_name="reminder_job_claimed",
-                mensagem=f"Job {job.id} adquirido para processamento.",
+                mensagem=f"Job {job.job_id} adquirido para processamento.",
                 correlation_id=correlation_id,
                 calendar_event_id=job.event_id,
-                job_id=str(job.id),
-                attempt=job.attempts
+                job_id=str(job.job_id),
+                attempt=job.attempt_count
             )
 
             try:
@@ -49,11 +52,11 @@ def executar_worker_ciclo():
                     db.commit()
                     registrar_log(
                         event_name="reminder_job_cancelled",
-                        mensagem=f"Job {job.id} cancelado: O evento associado não está mais ativo.",
+                        mensagem=f"Job {job.job_id} cancelado: O evento associado não está mais ativo.",
                         nivel="WARNING",
                         correlation_id=correlation_id,
                         calendar_event_id=job.event_id,
-                        job_id=str(job.id)
+                        job_id=str(job.job_id)
                     )
                     continue
 
@@ -63,11 +66,11 @@ def executar_worker_ciclo():
                     db.commit()
                     registrar_log(
                         event_name="reminder_job_cancelled",
-                        mensagem=f"Job {job.id} cancelado: Versão obsoleta detectada.",
+                        mensagem=f"Job {job.job_id} cancelado: Versão obsoleta detectada.",
                         nivel="WARNING",
                         correlation_id=correlation_id,
                         calendar_event_id=job.event_id,
-                        job_id=str(job.id)
+                        job_id=str(job.job_id)
                     )
                     continue
 
@@ -78,10 +81,10 @@ def executar_worker_ciclo():
                 if KILL_SWITCH_ATIVO:
                     registrar_log(
                         event_name="dispatch_switch_changed",
-                        mensagem=f"Kill Switch ativado! Interrompendo envio do job {job.id}.",
+                        mensagem=f"Kill Switch ativado! Interrompendo envio do job {job.job_id}.",
                         nivel="WARNING",
                         correlation_id=correlation_id,
-                        job_id=str(job.id)
+                        job_id=str(job.job_id)
                     )
                     job.status = "pending"  
                     db.commit()
@@ -90,36 +93,48 @@ def executar_worker_ciclo():
                 # Regra 208: Registrar tentativa antes da chamada externa
                 if DRY_RUN_ATIVO:
                     job.status = "sent"
-                    job.sent_at = datetime.now(timezone.utc)
                     db.commit()
                     registrar_log(
                         event_name="reminder_job_sent",
-                        mensagem=f"[Dry-Run] Mensagem simulada com sucesso para o job {job.id}.",
+                        mensagem=f"[Dry-Run] Mensagem simulada com sucesso para o job {job.job_id}.",
                         correlation_id=correlation_id,
                         calendar_event_id=job.event_id,
-                        job_id=str(job.id),
-                        attempt=job.attempts
+                        job_id=str(job.job_id),
+                        attempt=job.attempt_count
                     )
                     continue
 
-                # --- AQUI ENTRA A CHAMADA REAL DO WHATSAPP (WABA) ---
+                # --- CHAMADA REAL DO WHATSAPP (WABA) UTILIZANDO A CLASSE OFICIAL ---
+                api_url = os.getenv("WHATSAPP_API_URL", "https://graph.facebook.com/v17.0/PHONE_NUMBER_ID/messages")
+                token = os.getenv("WHATSAPP_ACCESS_TOKEN", "seu_token_aqui")
+                
+                whatsapp_client = OfficialWhatsAppClient(api_url=api_url, token=token)
+
                 inicio_chamada = time.time()
-                # response = await whatsapp_client.send_template(...)
+                
+                # Executa o envio assíncrono respeitando os parâmetros da classe
+                send_result = asyncio.run(whatsapp_client.send_template(
+                    phone_e164="5551999999999",  # Substitua pela lógica real do telefone do contato/evento
+                    template_name="lembrete_audiencia_v1",
+                    language="pt_BR",
+                    parameters=[evento.titulo if evento else "Audiencia"],
+                    idempotency_key=job.idempotency_key
+                ))
+                
                 duracao_ms = int((time.time() - inicio_chamada) * 1000)
 
                 # Sucesso no envio:
                 job.status = "sent"
-                job.sent_at = datetime.now(timezone.utc)
                 db.commit()
 
                 registrar_log(
                     event_name="reminder_job_sent",
-                    mensagem=f"Job {job.id} enviado com sucesso via WhatsApp.",
+                    mensagem=f"Job {job.job_id} enviado com sucesso via WhatsApp WABA.",
                     correlation_id=correlation_id,
                     calendar_event_id=job.event_id,
-                    job_id=str(job.id),
-                    attempt=job.attempts,
-                    provider_message_id="wamid_ficticio_exemplo",
+                    job_id=str(job.job_id),
+                    attempt=job.attempt_count,
+                    provider_message_id=send_result.message_id,
                     duration_ms=duracao_ms
                 )
 
@@ -127,28 +142,28 @@ def executar_worker_ciclo():
                 db.rollback()
                 
                 MAX_TENTATIVAS = 3
-                if job.attempts >= MAX_TENTATIVAS:
+                if job.attempt_count >= MAX_TENTATIVAS:
                     job.status = "review_required"
                     registrar_log(
                         event_name="reminder_job_failed",
-                        mensagem=f"Job {job.id} atingiu o limite de {MAX_TENTATIVAS} tentativas e foi para revisão: {str(e)}",
+                        mensagem=f"Job {job.job_id} atingiu o limite de {MAX_TENTATIVAS} tentativas e foi para revisão: {str(e)}",
                         nivel="ERROR",
                         correlation_id=correlation_id,
                         calendar_event_id=job.event_id,
-                        job_id=str(job.id),
-                        attempt=job.attempts
+                        job_id=str(job.job_id),
+                        attempt=job.attempt_count
                     )
                 else:
                     job.status = "retry"
-                    tempo_backoff = (2 ** job.attempts) + random.uniform(1, 3)
+                    tempo_backoff = (2 ** job.attempt_count) + random.uniform(1, 3)
                     registrar_log(
                         event_name="reminder_job_retry",
-                        mensagem=f"Erro temporário no job {job.id}. Agendado retry em {tempo_backoff:.2f}s: {str(e)}",
+                        mensagem=f"Erro temporário no job {job.job_id}. Agendado retry em {tempo_backoff:.2f}s: {str(e)}",
                         nivel="WARNING",
                         correlation_id=correlation_id,
                         calendar_event_id=job.event_id,
-                        job_id=str(job.id),
-                        attempt=job.attempts
+                        job_id=str(job.job_id),
+                        attempt=job.attempt_count
                     )
 
                 db.commit()

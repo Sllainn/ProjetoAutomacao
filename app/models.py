@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any, Dict, Optional
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func, JSON
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, func, JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -23,6 +23,14 @@ class CalendarChannel(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class SyncCursor(Base):
+    __tablename__ = "sync_cursors"
+    
+    calendar_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    sync_token: Mapped[str] = mapped_column(String(255), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class CalendarEvent(Base):
     __tablename__ = "calendar_events"
 
@@ -32,7 +40,6 @@ class CalendarEvent(Base):
     status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     start_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     end_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    sync_token: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
 
 class EventVersion(Base):
@@ -69,16 +76,26 @@ class ReminderPolicies(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class ReminderJobs(Base):
+class ReminderJob(Base):
     __tablename__ = "reminder_jobs"
 
     job_id: Mapped[str] = mapped_column(String(255), primary_key=True)
     resource_id: Mapped[Optional[str]] = mapped_column(String(255), ForeignKey("calendar_channels.resource_id"), nullable=True)
     event_id: Mapped[Optional[str]] = mapped_column(String(255), ForeignKey("calendar_events.event_id"), nullable=True)
+    
+    event_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    policy_code: Mapped[str] = mapped_column(Text, nullable=False)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    locked_by: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
     status: Mapped[str] = mapped_column(String(50), default="PENDING")
     scheduled_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    indempotency_key: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    
+    provider_message_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True, nullable=True)
+    
+    idempotency_key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -120,3 +137,12 @@ class AuditEvent(Base):
     audit_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ArmazenaDados(Base):
+    __tablename__ = "armazena_dados"
+
+    id_save = Column(String(255), primary_key=True, index=True)
+    resource_id = Column(String(255), ForeignKey("calendar_channels.resource_id"))
+    event_id = Column(String(255), ForeignKey("calendar_events.event_id"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

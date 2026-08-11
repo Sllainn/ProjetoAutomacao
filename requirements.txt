@@ -11,3 +11,4 @@ google-auth>=2.0.0
 apscheduler
 psycopg[binary]
 isodate
+httpx>=0.20.0
