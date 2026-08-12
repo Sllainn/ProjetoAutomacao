@@ -76,7 +76,7 @@ def executar_worker_ciclo():
 
                 # Regra 207: Aplicar kill switch e dry-run
                 KILL_SWITCH_ATIVO = False  
-                DRY_RUN_ATIVO = False      
+                DRY_RUN_ATIVO = False       
 
                 if KILL_SWITCH_ATIVO:
                     registrar_log(
@@ -105,7 +105,7 @@ def executar_worker_ciclo():
                     continue
 
                 # --- CHAMADA REAL DO WHATSAPP (WABA) UTILIZANDO A CLASSE OFICIAL ---
-                api_url = os.getenv("WHATSAPP_API_URL", "https://graph.facebook.com/v17.0/PHONE_NUMBER_ID/messages")
+                api_url = os.getenv("WHATSAPP_API_URL", "https://graph.facebook.com/v17.0/127302942258599/messages")
                 token = os.getenv("WHATSAPP_ACCESS_TOKEN", "seu_token_aqui")
                 
                 whatsapp_client = OfficialWhatsAppClient(api_url=api_url, token=token)
