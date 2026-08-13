@@ -61,17 +61,28 @@ class OfficialWhatsAppClient:
             }
         }
 
-        # O cabeçalho de idempotency_key pode ser incluído se suportado pela versão da graph api utilizada
         if idempotency_key:
             headers["X-Idempotency-Key"] = idempotency_key
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(self.api_url, json=payload, headers=headers)
-            response.raise_for_status()
-            
-            data = response.json()
-            # Extração padrão do ID de mensagem retornado pela API da Meta
-            messages = data.get("messages", [{}])
-            message_id = messages[0].get("id", "desconhecido")
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(self.api_url, json=payload, headers=headers)
+                
+                # Se a Meta retornar erro (ex: 400, 401, 403, 500), capturamos o corpo da resposta para debug
+                if response.is_error:
+                    print(f"❌ ERRO HTTP DA META [{response.status_code}]: {response.text}")
+                
+                response.raise_for_status()
+                
+                data = response.json()
+                messages = data.get("messages", [{}])
+                message_id = messages[0].get("id", "desconhecido")
 
-            return SendResult(message_id=message_id, status="sent")
+                return SendResult(message_id=message_id, status="sent")
+                
+        except httpx.HTTPStatusError as e:
+            print(f"❌ HTTPStatusError na API do WhatsApp: {e.response.text}")
+            raise e
+        except Exception as e:
+            print(f"❌ Erro de conexão/execução no cliente do WhatsApp: {str(e)}")
+            raise e
