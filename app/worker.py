@@ -114,7 +114,7 @@ def executar_worker_ciclo():
                 
                 # Executa o envio assíncrono para o número do escritório configurado
                 send_result = asyncio.run(whatsapp_client.send_template(
-                    phone_e164="5551989128092",  # Número fixo do escritório atualizado
+                    phone_e164="5551989128092",  
                     template_name="lembrete_audiencia_v1",
                     language="pt_BR",
                     parameters=[evento.titulo if evento else "Audiencia"],
@@ -140,6 +140,9 @@ def executar_worker_ciclo():
 
             except Exception as e:
                 db.rollback()
+                
+                # Captura e imprime o erro detalhado retornado pela requisição ou pela API
+                print(f"ERRO DETALHADO WHATSAPP / JOB {job.job_id}: {str(e)}")
                 
                 MAX_TENTATIVAS = 3
                 if job.attempt_count >= MAX_TENTATIVAS:
