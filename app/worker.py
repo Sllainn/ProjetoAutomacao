@@ -105,7 +105,7 @@ def executar_worker_ciclo():
                     continue
 
                 # --- CHAMADA REAL DO WHATSAPP (WABA) UTILIZANDO A CLASSE OFICIAL ---
-                api_url = os.getenv("WHATSAPP_API_URL", "https://graph.facebook.com/v17.0/127302942258599/messages")
+                api_url = os.getenv("WHATSAPP_API_URL", "https://graph.facebook.com/v17.0/1273029422558599/messages")
                 
                 # 🔥 TESTE DEFINITIVO: TOKEN CHUMBADO NO CÓDIGO (Hardcoded)
                 # Apague o texto abaixo e cole o seu token real inteiro, mantendo dentro das aspas!
