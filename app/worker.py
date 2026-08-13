@@ -112,9 +112,9 @@ def executar_worker_ciclo():
 
                 inicio_chamada = time.time()
                 
-                # Executa o envio assíncrono respeitando os parâmetros da classe
+                # Executa o envio assíncrono para o número do escritório configurado
                 send_result = asyncio.run(whatsapp_client.send_template(
-                    phone_e164="5551999999999",  # Substitua pela lógica real do telefone do contato/evento
+                    phone_e164="5551989128092",  # Número fixo do escritório atualizado
                     template_name="lembrete_audiencia_v1",
                     language="pt_BR",
                     parameters=[evento.titulo if evento else "Audiencia"],
