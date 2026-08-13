@@ -22,7 +22,17 @@ class WhatsAppClient(Protocol):
 class OfficialWhatsAppClient:
     def __init__(self, api_url: str, token: str, timeout: float = 15.0):
         self.api_url = api_url.rstrip("/")
-        self.token = token
+        
+        # --- FILTRO DE LIMPEZA DO TOKEN ---
+        # 1. Remove espaços e quebras de linha no início e fim
+        clean_token = token.strip()
+        # 2. Remove aspas simples ou duplas que possam ter vindo da variável de ambiente
+        clean_token = clean_token.strip("'").strip('"')
+        # 3. Se a palavra "Bearer " estiver no início do token, nós a removemos para não duplicar
+        if clean_token.lower().startswith("bearer "):
+            clean_token = clean_token[7:].strip()
+            
+        self.token = clean_token
         self.timeout = timeout
 
     async def send_template(
