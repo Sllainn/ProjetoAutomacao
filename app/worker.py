@@ -109,7 +109,7 @@ def executar_worker_ciclo():
                 
                 # 🔥 TESTE DEFINITIVO: TOKEN CHUMBADO NO CÓDIGO (Hardcoded)
                 # Apague o texto abaixo e cole o seu token real inteiro, mantendo dentro das aspas!
-                token = "EAAXiiuB2fKkBSM7bE21axQmhBWFz00og6Pkt6mVgluuhRIxwuhIbbHIIzB7tqPzDZBbXAdSfoTumLgsHDVENGkHl3ZBi9YGD3Ozg1Jy9WPqk3OOxqzj4Ps1dYU4ZBVnhOkdlDUZAXhuymXf54o2SlPjTQ16mgKTHwjs6EG6D3vC4IDquZBZANwKZBvQD3lHCp4uUt3hVT70nV9juUe9eW7APnVBcdzo92J0ZBCQpa47pJn7hORNIJpYkPqIjAToTExZBm9NPlZBBKOLt04huhQQgdAFoJZA"
+                token = "EAAXiiuB2fKkBSGro3hbmKcu2VowV4aCpH0mH34D9j7yCfRCUQrllXvkvPTxrbY8C1EmLZBEyyZCHVPs636DkvKMBZCsW9PZByFDWXQQ6NgM8GDQ0Y5lKG2ZBtdecopYbT1qPdwTC6Nfch2TyOUro04umZAMP0DM1xU46Hx3qywSaUd4BXir34dH78tYqyqD4RawQZDZD"
                 
                 whatsapp_client = OfficialWhatsAppClient(api_url=api_url, token=token)
 
