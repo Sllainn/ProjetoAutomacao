@@ -112,12 +112,22 @@ def executar_worker_ciclo():
 
                 inicio_chamada = time.time()
                 
-                # Executa o envio assíncrono para o número do escritório configurado
+                # --- Formatação das Variáveis do Template ---
+                # Verifica se o evento tem data de início para formatar corretamente
+                data_evento = evento.start_time.strftime("%d/%m/%Y") if evento and getattr(evento, "start_time", None) else "Data a definir"
+                hora_evento = evento.start_time.strftime("%H:%M") if evento and getattr(evento, "start_time", None) else "Hora a definir"
+                titulo_evento = evento.titulo if evento and getattr(evento, "titulo", None) else "Compromisso Jurídico"
+                
+                # Executa o envio assíncrono
                 send_result = asyncio.run(whatsapp_client.send_template(
                     phone_e164="5551989128092",  
-                    template_name="lembrete_audiencia_v1",
+                    template_name="aviso_agenda_advogado",
                     language="pt_BR",
-                    parameters=[evento.titulo if evento else "Audiencia"],
+                    parameters=[
+                        titulo_evento,   # Variável {{1}}: Assunto
+                        data_evento,     # Variável {{2}}: Data
+                        hora_evento      # Variável {{3}}: Hora
+                    ],
                     idempotency_key=job.idempotency_key
                 ))
                 
