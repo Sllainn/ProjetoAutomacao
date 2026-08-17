@@ -23,12 +23,8 @@ class OfficialWhatsAppClient:
     def __init__(self, api_url: str, token: str, timeout: float = 15.0):
         self.api_url = api_url.rstrip("/")
         
-        # --- FILTRO DE LIMPEZA DO TOKEN ---
-        # 1. Remove espaços e quebras de linha no início e fim
-        clean_token = token.strip()
-        # 2. Remove aspas simples ou duplas que possam ter vindo da variável de ambiente
-        clean_token = clean_token.strip("'").strip('"')
-        # 3. Se a palavra "Bearer " estiver no início do token, nós a removemos para não duplicar
+        # Filtro de limpeza do token
+        clean_token = token.strip().strip("'").strip('"')
         if clean_token.lower().startswith("bearer "):
             clean_token = clean_token[7:].strip()
             
@@ -44,31 +40,32 @@ class OfficialWhatsAppClient:
         parameters: List[str],
         idempotency_key: str,
     ) -> SendResult:
-        """
-        Envia um template aprovado via API Oficial do WhatsApp (WABA),
-        respeitando a idempotência e os parâmetros especificados.
-        """
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json"
         }
 
+        template_obj = {
+            "name": template_name,
+            "language": {"code": language}
+        }
+
+        # Só anexa components se houver parâmetros reais a serem preenchidos
+        if parameters:
+            template_obj["components"] = [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": str(value)} for value in parameters
+                    ]
+                }
+            ]
+
         payload = {
             "messaging_product": "whatsapp",
-            "to": phone_e164,
+            "to": str(phone_e164).replace("+", "").strip(),
             "type": "template",
-            "template": {
-                "name": template_name,
-                "language": {"code": language},
-                "components": [
-                    {
-                        "type": "body",
-                        "parameters": [
-                            {"type": "text", "text": value} for value in parameters
-                        ]
-                    }
-                ]
-            }
+            "template": template_obj
         }
 
         if idempotency_key:
@@ -78,7 +75,6 @@ class OfficialWhatsAppClient:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(self.api_url, json=payload, headers=headers)
                 
-                # Se a Meta retornar erro (ex: 400, 401, 403, 500), capturamos o corpo da resposta para debug
                 if response.is_error:
                     print(f"❌ ERRO HTTP DA META [{response.status_code}]: {response.text}")
                 
