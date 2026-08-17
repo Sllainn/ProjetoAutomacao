@@ -1,26 +1,39 @@
-import re
+﻿import re
+import html
 import unicodedata
 from datetime import datetime
 from typing import Dict, Any
 from app.schemas import HearingData
 
 def normalizar_chave(texto: str) -> str:
-    """Regra 171: Normaliza maiúsculas, espaços e acentos dos rótulos."""
+    """Normaliza maiúsculas, espaços e acentos dos rótulos."""
     texto = texto.strip().upper()
-    # Remove acentos substituindo caracteres especiais
     texto = ''.join(
-        c for c in unicodedata.normalize('NFD', texto) 
+        c for c in unicodedata.normalize('NFD', texto)
         if unicodedata.category(c) != 'Mn'
     )
     return texto
 
-def limpar_texto(texto: str) -> str:
-    """Remove espaços em branco no início e no fim do valor."""
-    return texto.strip()
+def limpar_html(texto: str) -> str:
+    """Converte tags HTML comuns em quebras de linha e remove marcações restantes."""
+    if not texto:
+        return ""
+    
+    # Decodifica entidades HTML como &nbsp;, &amp;, &lt;, etc.
+    texto = html.unescape(texto)
+    texto = texto.replace('\xa0', ' ')
+
+    # Converte tags de quebra/bloco para quebras de linha reais
+    texto = re.sub(r'(?i)<br\s*/?>', '\n', texto)
+    texto = re.sub(r'(?i)</?(div|p|tr|li)[^>]*>', '\n', texto)
+
+    # Remove quaisquer outras tags HTML remanescentes (como <b>, <a>, <span>)
+    texto = re.sub(r'<[^<]+?>', '', texto)
+    return texto
 
 def parsear_descricao_evento(event_id: str, descricao: str, start_dt: datetime, timezone_str: str) -> Dict[str, Any]:
     """
-    Realiza o parse da descrição humana do evento do Google Calendar 
+    Realiza o parse da descrição humana do evento do Google Calendar
     e valida contra o contrato de dados HearingData.
     """
     if not descricao:
@@ -29,17 +42,18 @@ def parsear_descricao_evento(event_id: str, descricao: str, start_dt: datetime, 
             "errors": ["A descrição do evento está vazia. Impossível realizar o parse."]
         }
 
-    # Dicionário para armazenar os campos extraídos
     dados_extraidos = {
         "google_event_id": event_id,
         "starts_at": start_dt,
         "timezone": timezone_str
     }
-    
-    erros = []
-    linhas = descricao.splitlines()
 
-    # Mapeamento de rótulos permitidos (substitui a cascata de if/elif)
+    erros = []
+    
+    # Higieniza HTML antes de quebrar em linhas
+    texto_puro = limpar_html(descricao)
+    linhas = texto_puro.splitlines()
+
     mapeamento_chaves = {
         "TIPO": "tipo",
         "PROCESSO": "process_number",
@@ -51,38 +65,39 @@ def parsear_descricao_evento(event_id: str, descricao: str, start_dt: datetime, 
         "OBS_CLIENTE": "public_note"
     }
 
-    # Regra 171 e 172: Percorre as linhas e filtra apenas os campos públicos da Whitelist
     for linha in linhas:
-        if ":" not in linha:
+        linha_limpa = linha.strip()
+        if ":" not in linha_limpa:
             continue
-        
-        chave_bruta, valor = linha.split(":", 1)
+
+        chave_bruta, valor = linha_limpa.split(":", 1)
         chave_normalizada = normalizar_chave(chave_bruta)
-        valor_limpo = limpar_texto(valor)
+        valor_limpo = valor.strip()
 
         if chave_normalizada in mapeamento_chaves and valor_limpo:
             campo_destino = mapeamento_chaves[chave_normalizada]
-            
-            # Força minúsculas apenas para regras internas de TIPO e MODALIDADE
+
             if chave_normalizada in ["TIPO", "MODALIDADE"]:
                 valor_limpo = valor_limpo.lower()
-                
-            dados_extraidos[campo_destino] = valor_limpo
-        # Nota: O campo OBS_INTERNA é ignorado nativamente por não estar no mapeamento_chaves.
 
-    # --- Validações e Regras de Negócio (Regras 173, 174, 176) ---
-    
-    # Validação do Número do Processo (Regra 173 - Padrão CNJ básico)
+            dados_extraidos[campo_destino] = valor_limpo
+
+    # Validação do Número do Processo (Padrão CNJ)
     proc_num = dados_extraidos.get("process_number", "")
     padrao_cnj = r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$"
     if not proc_num or not re.match(padrao_cnj, proc_num):
         erros.append(f"Número de processo ausente, inválido ou fora do padrão CNJ: '{proc_num}'")
 
-    # Validação do ID do Cliente (Regra 173)
-    if not dados_extraidos.get("client_external_id"):
+    # Validação do ID do Cliente (Telefone)
+    cliente_id = dados_extraidos.get("client_external_id", "")
+    # Remove eventuais caracteres não numéricos do telefone
+    cliente_id_limpo = re.sub(r"\D", "", cliente_id)
+    if not cliente_id_limpo:
         erros.append("O identificador do cliente (CLIENTE_ID) está ausente ou vazio.")
+    else:
+        dados_extraidos["client_external_id"] = cliente_id_limpo
 
-    # Validação de Modalidade e Links/Endereços obrigatórios (Regra 174)
+    # Validação de Modalidade e Links/Endereços
     modalidade = dados_extraidos.get("mode")
     link = dados_extraidos.get("public_link")
     local = dados_extraidos.get("public_location")
@@ -96,7 +111,6 @@ def parsear_descricao_evento(event_id: str, descricao: str, start_dt: datetime, 
     elif modalidade not in ["online", "presencial", "hibrida"]:
         erros.append(f"Modalidade '{modalidade}' não reconhecida. Use online, presencial ou hibrida.")
 
-    # Se houver erros, aplicamos a Regra 176 (Marcar como review/rejeitar ambiguidades)
     if erros:
         return {
             "status": "review_required",
@@ -104,7 +118,6 @@ def parsear_descricao_evento(event_id: str, descricao: str, start_dt: datetime, 
             "raw_data": dados_extraidos
         }
 
-    # Validação final utilizando o Pydantic (HearingData)
     try:
         hearing_model = HearingData(**dados_extraidos)
         return {
