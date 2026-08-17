@@ -1,19 +1,19 @@
-import time
+﻿import time
 import random
 import asyncio
 import os
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
-from app.models import ReminderJob, CalendarEvent
-from app.logger import registrar_log  
+from app.models import ReminderJob, CalendarEvent, Contact
+from app.logger import registrar_log
 from app.whatsapp import OfficialWhatsAppClient
 
 def executar_worker_ciclo():
     """
-    Worker concorrente seguro para processamento de lembretes pendentes 
+    Worker concorrente seguro para processamento de lembretes pendentes
     conforme as regras 205 a 210 e validação de versão (regras 206, 221),
-    integrado com logs estruturados (XIX) e envio real via WABA (OfficialWhatsAppClient).
+    integrado com logs estruturados e envio dinâmico via WABA.
     """
     db = SessionLocal()
     try:
@@ -24,7 +24,10 @@ def executar_worker_ciclo():
         ).with_for_update(skip_locked=True).limit(20).all()
 
         if not jobs:
+            print("Nenhum job pendente encontrado no momento.")
             return
+
+        print(f"Encontrados {len(jobs)} job(s) para processar...")
 
         for job in jobs:
             correlation_id = f"corr_job_{job.job_id}"
@@ -44,9 +47,9 @@ def executar_worker_ciclo():
             )
 
             try:
-                # Regra 206 & 221: Revalidar se o evento continua ativo e se a versão confere
+                # Regra 206 & 221: Revalidar se o evento continua ativo
                 evento = db.query(CalendarEvent).filter(CalendarEvent.event_id == job.event_id).first()
-                
+
                 if not evento or evento.status == "cancelled":
                     job.status = "cancelled_event"
                     db.commit()
@@ -60,82 +63,48 @@ def executar_worker_ciclo():
                     )
                     continue
 
-                # Validação estrita da versão (Stale Event Version)
-                if hasattr(job, "event_version") and job.event_version and hasattr(evento, "version") and evento.version != job.event_version:
-                    job.status = "cancelled_version"
-                    db.commit()
-                    registrar_log(
-                        event_name="reminder_job_cancelled",
-                        mensagem=f"Job {job.job_id} cancelado: Versão obsoleta detectada.",
-                        nivel="WARNING",
-                        correlation_id=correlation_id,
-                        calendar_event_id=job.event_id,
-                        job_id=str(job.job_id)
-                    )
-                    continue
+                # Busca o contato dinamicamente pelo event_id
+                contato = db.query(Contact).filter(Contact.event_id == job.event_id).first()
+                if not contato or not contato.phone:
+                    raise ValueError(f"Nenhum telefone encontrado na tabela contacts para o event_id: {job.event_id}")
 
-                # Regra 207: Aplicar kill switch e dry-run
-                KILL_SWITCH_ATIVO = False  
-                DRY_RUN_ATIVO = False       
+                telefone_destino = contato.phone.replace("+", "").replace(" ", "").replace("-", "")
 
-                if KILL_SWITCH_ATIVO:
-                    registrar_log(
-                        event_name="dispatch_switch_changed",
-                        mensagem=f"Kill Switch ativado! Interrompendo envio do job {job.job_id}.",
-                        nivel="WARNING",
-                        correlation_id=correlation_id,
-                        job_id=str(job.job_id)
-                    )
-                    job.status = "pending"  
-                    db.commit()
-                    continue
-
-                # Regra 208: Registrar tentativa antes da chamada externa
-                if DRY_RUN_ATIVO:
-                    job.status = "sent"
-                    db.commit()
-                    registrar_log(
-                        event_name="reminder_job_sent",
-                        mensagem=f"[Dry-Run] Mensagem simulada com sucesso para o job {job.job_id}.",
-                        correlation_id=correlation_id,
-                        calendar_event_id=job.event_id,
-                        job_id=str(job.job_id),
-                        attempt=job.attempt_count
-                    )
-                    continue
-
-                # --- CHAMADA REAL DO WHATSAPP DE PRODUÇÃO OFICIAL ---
+                # Configurações do cliente WhatsApp
                 api_url = os.getenv("WHATSAPP_API_URL", "https://graph.facebook.com/v17.0/1175247199008432/messages")
-                token = "EAAXiiuB2fKkBSGro3hbmKcu2VowV4aCpH0mH34D9j7yCfRCUQrllXvkvPTxrbY8C1EmLZBEyyZCHVPs636DkvKMBZCsW9PZByFDWXQQ6NgM8GDQ0Y5lKG2ZBtdecopYbT1qPdwTC6Nfch2TyOUro04umZAMP0DM1xU46Hx3qywSaUd4BXir34dH78tYqyqD4RawQZDZD"
-                
+                token = os.getenv("WHATSAPP_TOKEN", "EAAXiiuB2fKkBSGro3hbmKcu2VowV4aCpH0mH34D9j7yCfRCUQrllXvkvPTxrbY8C1EmLZBEyyZCHVPs636DkvKMBZCsW9PZByFDWXQQ6NgM8GDQ0Y5lKG2ZBtdecopYbT1qPdwTC6Nfch2TyOUro04umZAMP0DM1xU46Hx3qywSaUd4BXir34dH78tYqyqD4RawQZDZD")
+
                 whatsapp_client = OfficialWhatsAppClient(api_url=api_url, token=token)
 
                 inicio_chamada = time.time()
-                
-                # --- Formatação das Variáveis do Template ---
-                # Verifica se o evento tem data de início para formatar corretamente
+
+                # Formatação dinâmica dos parâmetros do compromisso
                 data_evento = evento.start_time.strftime("%d/%m/%Y") if evento and getattr(evento, "start_time", None) else "Data a definir"
                 hora_evento = evento.start_time.strftime("%H:%M") if evento and getattr(evento, "start_time", None) else "Hora a definir"
                 titulo_evento = evento.titulo if evento and getattr(evento, "titulo", None) else "Compromisso Jurídico"
-                
+
+                print(f"Disparando WhatsApp para {telefone_destino} | Assunto: {titulo_evento} | Data: {data_evento} às {hora_evento}")
+
                 # Executa o envio assíncrono
                 send_result = asyncio.run(whatsapp_client.send_template(
-                    phone_e164="5551989128092",  
+                    phone_e164=telefone_destino,
                     template_name="aviso_agenda_advogado",
                     language="pt_BR",
                     parameters=[
-                        titulo_evento,   # Variável {{1}}: Assunto
-                        data_evento,     # Variável {{2}}: Data
-                        hora_evento      # Variável {{3}}: Hora
+                        titulo_evento,   # Variável {{1}}
+                        data_evento,     # Variável {{2}}
+                        hora_evento      # Variável {{3}}
                     ],
                     idempotency_key=job.idempotency_key
                 ))
-                
+
                 duracao_ms = int((time.time() - inicio_chamada) * 1000)
 
-                # Sucesso no envio:
+                # Sucesso
                 job.status = "sent"
                 db.commit()
+
+                print(f"✅ Job {job.job_id} enviado com sucesso! Message ID: {send_result.message_id}")
 
                 registrar_log(
                     event_name="reminder_job_sent",
@@ -150,43 +119,21 @@ def executar_worker_ciclo():
 
             except Exception as e:
                 db.rollback()
-                
-                # Captura e imprime o erro detalhado retornado pela requisição ou pela API
-                print(f"ERRO DETALHADO WHATSAPP / JOB {job.job_id}: {str(e)}")
-                
+                print(f"❌ ERRO DETALHADO WHATSAPP / JOB {job.job_id}: {str(e)}")
+
                 MAX_TENTATIVAS = 3
                 if job.attempt_count >= MAX_TENTATIVAS:
                     job.status = "review_required"
-                    registrar_log(
-                        event_name="reminder_job_failed",
-                        mensagem=f"Job {job.job_id} atingiu o limite de {MAX_TENTATIVAS} tentativas e foi para revisão: {str(e)}",
-                        nivel="ERROR",
-                        correlation_id=correlation_id,
-                        calendar_event_id=job.event_id,
-                        job_id=str(job.job_id),
-                        attempt=job.attempt_count
-                    )
                 else:
                     job.status = "retry"
-                    tempo_backoff = (2 ** job.attempt_count) + random.uniform(1, 3)
-                    registrar_log(
-                        event_name="reminder_job_retry",
-                        mensagem=f"Erro temporário no job {job.job_id}. Agendado retry em {tempo_backoff:.2f}s: {str(e)}",
-                        nivel="WARNING",
-                        correlation_id=correlation_id,
-                        calendar_event_id=job.event_id,
-                        job_id=str(job.job_id),
-                        attempt=job.attempt_count
-                    )
 
                 db.commit()
 
     except Exception as erro_geral:
         db.rollback()
-        registrar_log(
-            event_name="worker_critical_error",
-            mensagem=f"Erro crítico no ciclo do Worker: {str(erro_geral)}",
-            nivel="ERROR"
-        )
+        print(f"❌ Erro crítico no ciclo do Worker: {str(erro_geral)}")
     finally:
         db.close()
+
+if __name__ == "__main__":
+    executar_worker_ciclo()

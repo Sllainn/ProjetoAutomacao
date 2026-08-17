@@ -1,16 +1,16 @@
-import os
+﻿import os
 import uuid
 import hashlib
 from datetime import datetime, timezone, timedelta
-import isodate  # Certifique-se de ter instalado: pip install isodate
+import isodate
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError  # Importação para capturar erros específicos do Google
+from googleapiclient.errors import HttpError
 from sqlalchemy.orm import Session
-from app.parser import parsear_descricao_evento  # Importação do parser de descrições
+from app.parser import parsear_descricao_evento
 
 from app.database import SessionLocal
-from app.models import CalendarEvent, EventVersion, CalendarChannel, ReminderJob
+from app.models import CalendarEvent, EventVersion, CalendarChannel, ReminderJob, SyncCursor, Contact
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CAMINHO_JSON = os.path.join(BASE_DIR, 'config', 'app-sincronizacao-calendario-6fc8146367e1.json')
@@ -22,9 +22,6 @@ def obter_servico_google():
     return build('calendar', 'v3', credentials=credenciais)
 
 def registrar_watch_google(db: Session, webhook_url_base: str):
-    """
-    Registra a URL pública do Webhook no Google Calendar para escutar alterações em tempo real.
-    """
     servico = obter_servico_google()
     channel_id = str(uuid.uuid4())
     url_webhook_completa = f"{webhook_url_base.rstrip('/')}/webhook/google-calendar"
@@ -37,7 +34,7 @@ def registrar_watch_google(db: Session, webhook_url_base: str):
 
     try:
         resposta = servico.events().watch(calendarId=EMAIL_AGENDA, body=body).execute()
-        
+
         resource_id = resposta.get('resourceId')
         expiration_ms = int(resposta.get('expiration', 0))
         validade_dt = datetime.fromtimestamp(expiration_ms / 1000.0, tz=timezone.utc)
@@ -48,44 +45,28 @@ def registrar_watch_google(db: Session, webhook_url_base: str):
             calendar_id=EMAIL_AGENDA,
             validade_calendario=validade_dt
         )
-        
+
         db.add(novo_canal)
         db.commit()
 
-        print(f"🔗 Watch registrado no Google com sucesso!")
-        print(f"✅ Canal salvo no PostgreSQL (Validade: {validade_dt})")
-        print(f"📍 Webhook URL: {url_webhook_completa}")
-        print(f"🔑 Channel ID: {channel_id}")
-        print(f"📌 Resource ID: {resource_id}")
+        print(f"🔗 Watch registrado no Google com sucesso! (Validade: {validade_dt})")
         return resposta
-    
+
     except Exception as e:
         db.rollback()
         print(f"❌ Erro ao registrar watch no Google: {str(e)}")
         raise e
 
-# --- FUNÇÕES DE GERAÇÃO DE TAREFAS DE LEMBRETES (Regras 198 a 204) ---
 def build_job_key(event_id: str, event_version: int, policy_code: str, offset: str) -> str:
-    """Regra 202: Cria chave determinística única para garantir idempotência."""
     raw = f"{event_id}|{event_version}|{policy_code}|{offset}"
     return hashlib.sha256(raw.encode()).hexdigest()
 
 def gerar_tarefas_lembretes_para_evento(db: Session, event_id: str, event_version: int, starts_at: datetime):
-    """
-    Transforma a política aprovada em tarefas persistentes (Regras 198 a 204).
-    Não chama o WhatsApp durante a criação (Regra 204).
-    """
     policy_code = "hearing_default_v1"
-    # Exemplo de cadência baseada na sua especificação da imagem
-    offsets = ["P30D", "P7D", "P1D"]
-    template_mapping = {
-        "P30D": "audiencia_aviso_v1",
-        "P7D": "audiencia_lembrete_v1",
-        "P1D": "audiencia_lembrete_v1"
-    }
+    offsets = ["P30D", "P7D", "P1D", "PT2H"]
 
     agora_utc = datetime.now(timezone.utc)
-    
+
     if starts_at.tzinfo is None:
         starts_at = starts_at.replace(tzinfo=timezone.utc)
     else:
@@ -100,7 +81,6 @@ def gerar_tarefas_lembretes_para_evento(db: Session, event_id: str, event_versio
             print(f"⚠️ Erro ao interpretar o offset {offset_str}: {e}")
             continue
 
-        # Regra 201: Descartar lembretes cujo horário já passou
         if scheduled_at <= agora_utc:
             continue
 
@@ -110,37 +90,32 @@ def gerar_tarefas_lembretes_para_evento(db: Session, event_id: str, event_versio
         if existe:
             continue
 
-        template_name = template_mapping.get(offset_str, "audiencia_lembrete_v1")
-
         novo_job = ReminderJob(
+            job_id=f"job_{event_id}_{offset_str}".lower(),
             event_id=event_id,
+            event_version=event_version,
             policy_code=policy_code,
-            offset=offset_str,
-            scheduled_at=scheduled_at,
+            scheduled_time=scheduled_at,
             idempotency_key=idempotency_key,
-            template_name=template_name,
-            status="pending"
+            status="pending",
+            attempt_count=0
         )
         db.add(novo_job)
         criadas += 1
 
     if criadas > 0:
-        print(f"⏰ {criadas} jobs de lembrete gerados com segurança para o evento {event_id}.")
+        print(f"⏰ {criadas} job(s) de lembrete gerado(s) para o evento {event_id}.")
 
 
 def sincronizacao_completa_banco():
-    """
-    Função de sincronização que lê e atualiza os eventos no PostgreSQL,
-    aplicando o parser estruturado e gerando os jobs de lembrete correspondentes.
-    """
     db = SessionLocal()
-    
+
     try:
         servico = obter_servico_google()
-        print(f"🚀 Iniciando Sincronização Incremental/Total do Google Calendar...")
+        print("🚀 Iniciando Sincronização Incremental/Total do Google Calendar...")
 
-        ultimo_evento = db.query(CalendarEvent).filter(CalendarEvent.sync_token.isnot(None)).first()
-        sync_token = ultimo_evento.sync_token if ultimo_evento else None
+        cursor = db.query(SyncCursor).filter(SyncCursor.calendar_id == EMAIL_AGENDA).first()
+        sync_token = cursor.sync_token if cursor else None
 
         page_token = None
         total_processados = 0
@@ -158,20 +133,19 @@ def sincronizacao_completa_banco():
             if page_token:
                 params['pageToken'] = page_token
 
-            # --- PASSO 168: Tratamento do Erro 410 ---
             try:
                 res = servico.events().list(**params).execute()
             except HttpError as err:
                 if err.resp.status == 410:
-                    print("⚠️ Erro 410: Sync Token expirado ou inválido. Reiniciando sincronização completa...")
-                    db.query(CalendarEvent).update({CalendarEvent.sync_token: None})
-                    db.commit()
+                    print("⚠️ Erro 410: Sync Token expirado. Reiniciando sincronização completa...")
+                    if cursor:
+                        db.delete(cursor)
+                        db.commit()
                     sync_token = None
                     page_token = None
-                    continue  
+                    continue
                 else:
                     raise err
-            # ------------------------------------------
 
             items = res.get('items', [])
             print(f"📄 Processando lote de {len(items)} eventos...")
@@ -180,16 +154,14 @@ def sincronizacao_completa_banco():
                 event_id = item.get('id')
                 status = item.get('status')
                 descricao_bruta = item.get('description', '')
-                
+
                 start_str = item.get('start', {}).get('dateTime', item.get('start', {}).get('date'))
                 end_str = item.get('end', {}).get('dateTime', item.get('end', {}).get('date'))
-                
                 timezone_str = item.get('start', {}).get('timeZone', 'UTC')
 
                 start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00')) if start_str else None
                 end_dt = datetime.fromisoformat(end_str.replace('Z', '+00:00')) if end_str else None
 
-                # --- APLICAÇÃO DO PARSER (Fase XIV) ---
                 resultado_parser = parsear_descricao_evento(
                     event_id=event_id,
                     descricao=descricao_bruta,
@@ -198,9 +170,25 @@ def sincronizacao_completa_banco():
                 )
 
                 if resultado_parser["status"] == "success":
-                    print(f"✅ Evento {event_id} estruturado e validado pelo Parser com sucesso!")
+                    print(f"✅ Evento {event_id} estruturado pelo Parser!")
+                    dados_validados = resultado_parser["data"]
+
+                    cliente_tel = getattr(dados_validados, 'client_external_id', None)
+                    if cliente_tel:
+                        contato_db = db.query(Contact).filter(Contact.event_id == event_id).first()
+                        if not contato_db:
+                            contato_db = Contact(
+                                contact_id=f"cnt_{event_id}",
+                                event_id=event_id,
+                                phone=cliente_tel,
+                                name=item.get('summary', 'Cliente')
+                            )
+                            db.add(contato_db)
+                        else:
+                            contato_db.phone = cliente_tel
+                            contato_db.name = item.get('summary', 'Cliente')
                 else:
-                    print(f"⚠️ Evento {event_id} requer REVISÃO: {resultado_parser.get('errors')}")
+                    print(f"⚠️ Evento {event_id} (Aviso Parser): {resultado_parser.get('errors')}")
 
                 evento_db = db.query(CalendarEvent).filter(CalendarEvent.event_id == event_id).first()
 
@@ -229,20 +217,17 @@ def sincronizacao_completa_banco():
                     )
                     db.add(nova_versao)
                     db.flush()
-                    
-                    # --- GERAÇÃO DE TAREFAS DE LEMBRETE (Se o evento estiver ativo e com data válida) ---
+
                     if status != "cancelled" and start_dt:
-                        # Pega o ID da versão recém criada para usar na chave determinística
-                        versao_id = nova_versao.id if hasattr(nova_versao, 'id') else 1
+                        versao_id = nova_versao.version_id if hasattr(nova_versao, 'version_id') else 1
                         gerar_tarefas_lembretes_para_evento(
                             db=db,
                             event_id=event_id,
                             event_version=versao_id,
                             starts_at=start_dt
                         )
-
                 except Exception as err_versao:
-                    print(f"⚠️ Aviso ao salvar versão para o evento {event_id}: {err_versao}")
+                    print(f"⚠️ Erro ao salvar versão do evento {event_id}: {err_versao}")
 
                 total_processados += 1
 
@@ -252,7 +237,12 @@ def sincronizacao_completa_banco():
             if not page_token:
                 next_sync_token = res.get('nextSyncToken')
                 if next_sync_token:
-                    db.query(CalendarEvent).update({CalendarEvent.sync_token: next_sync_token})
+                    cursor_atual = db.query(SyncCursor).filter(SyncCursor.calendar_id == EMAIL_AGENDA).first()
+                    if not cursor_atual:
+                        cursor_atual = SyncCursor(calendar_id=EMAIL_AGENDA, sync_token=next_sync_token)
+                        db.add(cursor_atual)
+                    else:
+                        cursor_atual.sync_token = next_sync_token
                     db.commit()
                 break
 
@@ -265,50 +255,33 @@ def sincronizacao_completa_banco():
         db.close()
 
 def encerrar_watch_google(db: Session, canal_google: str, resource_id: str):
-    """
-    Passo 169 (Parte 1): Encerra um canal antigo no Google de forma educada.
-    """
     servico = obter_servico_google()
-    body = {
-        "id": canal_google,
-        "resourceId": resource_id
-    }
-    
+    body = {"id": canal_google, "resourceId": resource_id}
     try:
         servico.channels().stop(body=body).execute()
         print(f"🛑 Canal {canal_google} encerrado com sucesso no Google.")
     except Exception as e:
-        print(f"⚠️ Aviso: Não foi possível encerrar o canal {canal_google} no Google: {str(e)}")
+        print(f"⚠️ Aviso: Não foi possível encerrar o canal {canal_google}: {str(e)}")
 
 def renovar_canais_expirando(db: Session, webhook_url_base: str, horas_margem: int = 24):
-    """
-    Passo 169 (Parte 2): Procura canais ativos próximos do vencimento e os renova.
-    """
     agora = datetime.now(timezone.utc)
     limite_expiracao = agora + timedelta(hours=horas_margem)
-    
+
     canais_expirando = db.query(CalendarChannel).filter(
         CalendarChannel.status == "ACTIVE",
         CalendarChannel.validade_calendario <= limite_expiracao
     ).all()
-    
+
     if not canais_expirando:
-        print("✅ Nenhum canal precisando de renovação no momento.")
         return
-        
+
     for canal_antigo in canais_expirando:
-        print(f"🔄 Renovando canal {canal_antigo.canal_google} (Vence em: {canal_antigo.validade_calendario})...")
-        
         try:
             registrar_watch_google(db, webhook_url_base)
             encerrar_watch_google(db, canal_antigo.canal_google, canal_antigo.resource_id)
-            
             canal_antigo.status = "RENEWED"
             canal_antigo.renovacao_calendario = agora
             db.commit()
-            
-            print(f"✅ Canal renovado com sucesso!")
-            
         except Exception as e:
             db.rollback()
-            print(f"❌ Falha ao tentar renovar o canal {canal_antigo.canal_google}: {str(e)}")
+            print(f"❌ Falha ao renovar canal: {str(e)}")
