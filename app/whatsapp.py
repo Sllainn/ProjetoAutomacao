@@ -50,7 +50,7 @@ class OfficialWhatsAppClient:
             "language": {"code": language}
         }
 
-        # Só anexa components se houver parâmetros reais a serem preenchidos
+        # Anexa components apenas se houver parâmetros reais
         if parameters:
             template_obj["components"] = [
                 {
@@ -71,12 +71,14 @@ class OfficialWhatsAppClient:
         if idempotency_key:
             headers["X-Idempotency-Key"] = idempotency_key
 
+        # --- Bloco de envio e captura de logs detalhados ---
         try:
+            print(f"📦 PAYLOAD ENVIADO PARA META: {payload}")
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(self.api_url, json=payload, headers=headers)
                 
                 if response.is_error:
-                    print(f"❌ ERRO HTTP DA META [{response.status_code}]: {response.text}")
+                    print(f"❌ RESPOSTA COMPLETA DA META [{response.status_code}]: {response.text}")
                 
                 response.raise_for_status()
                 
