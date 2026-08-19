@@ -101,33 +101,33 @@ async def webhook_liderhub(request: Request):
         dados = await request.json()
         print(f"📦 Payload recebido do Liderhub: {dados}")
         
-        # Puxa o nome e telefone do payload
         nome = dados.get("nome") or "Lead Liderhub"
         telefone = dados.get("celular")
         
+        # Trava de segurança para ignorar o teste vazio do LiderHub
         if not telefone or telefone == '<celular>':
-            # Ignora se vier vazio ou se for a variável não processada de teste
-            return {"status": "ignorado", "motivo": "Telefone inválido ou vazio"}
+            print("⚠️ Webhook ignorado: Payload de teste do LiderHub sem dados reais.")
+            return {"status": "ignorado", "motivo": "Payload de teste"}
             
-        # Extrai apenas os números
         telefone_limpo = "".join(c for c in str(telefone) if c.isdigit())
         
         db = SessionLocal()
         try:
             fake_event_id = f"lead_{uuid.uuid4().hex[:8]}"
             
-            # 1. Cria o evento "fantasma" para satisfazer a regra do banco
+            # 1. Cria o evento fantasma primeiro
             novo_evento = CalendarEvent(
                 event_id=fake_event_id,
-                calendar_id="liderhub_api", # Marcador para você saber de onde veio
+                calendar_id="liderhub_api",
                 titulo=f"Lead: {nome}",
                 status="confirmed",
                 start_time=datetime.now(timezone.utc),
                 end_time=datetime.now(timezone.utc)
             )
             db.add(novo_evento)
+            db.flush() # <-- O SEGREDO ESTÁ AQUI: Força o banco a registrar o evento agora
             
-            # 2. Cria o contato atrelado ao evento fantasma
+            # 2. Cria o contato em seguida
             novo_contato = Contact(
                 contact_id=f"cnt_{fake_event_id}",
                 event_id=fake_event_id,
@@ -136,7 +136,7 @@ async def webhook_liderhub(request: Request):
             )
             db.add(novo_contato)
             
-            db.commit() # Salva os dois juntos no banco
+            db.commit() # Salva tudo de forma definitiva
             print(f"✅ Lead do Liderhub salvo com sucesso: {nome} - {telefone_limpo}")
             
         except Exception as db_err:
