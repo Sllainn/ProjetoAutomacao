@@ -63,7 +63,6 @@ def build_job_key(event_id: str, event_version: int, policy_code: str, offset: s
 
 def gerar_tarefas_lembretes_para_evento(db: Session, event_id: str, event_version: int, starts_at: datetime):
     policy_code = "hearing_default_v1"
-    # P0D dispara imediatamente na criação; as demais seguem a régua regressiva
     offsets = ["P0D", "P30D", "P7D", "P1D", "PT2H"]
 
     agora_utc = datetime.now(timezone.utc)
@@ -76,7 +75,8 @@ def gerar_tarefas_lembretes_para_evento(db: Session, event_id: str, event_versio
     criadas = 0
     for offset_str in offsets:
         if offset_str == "P0D":
-            scheduled_at = agora_utc
+            # Dá margem de 10s no passado para o worker pegar na hora
+            scheduled_at = agora_utc - timedelta(seconds=10)
         else:
             try:
                 duracao = isodate.parse_duration(offset_str)
@@ -91,13 +91,11 @@ def gerar_tarefas_lembretes_para_evento(db: Session, event_id: str, event_versio
         job_pk = f"job_{event_id}_{offset_str}".lower()
         idempotency_key = build_job_key(event_id, event_version, policy_code, offset_str)
 
-        # Checa se o job já existe pela chave primária ou idempotency_key
         job_existente = db.query(ReminderJob).filter(
             (ReminderJob.job_id == job_pk) | (ReminderJob.idempotency_key == idempotency_key)
         ).first()
 
         if job_existente:
-            # Se a versão mudou e o job ainda não foi enviado, atualiza o horário e a chave
             if job_existente.status in ["pending", "retry", "PENDING", "RETRY"]:
                 job_existente.event_version = event_version
                 job_existente.scheduled_time = scheduled_at
@@ -183,9 +181,11 @@ def sincronizacao_completa_banco():
                     timezone_str=timezone_str
                 )
 
+                evento_valido = False
                 if resultado_parser["status"] == "success":
                     print(f"✅ Evento {event_id} estruturado pelo Parser!")
                     dados_validados = resultado_parser["data"]
+                    evento_valido = True
 
                     cliente_tel = getattr(dados_validados, 'client_external_id', None)
                     if cliente_tel:
@@ -232,7 +232,8 @@ def sincronizacao_completa_banco():
                     db.add(nova_versao)
                     db.flush()
 
-                    if status != "cancelled" and start_dt:
+                    # Gera jobs apenas se o evento for válido segundo o parser
+                    if status != "cancelled" and start_dt and evento_valido:
                         versao_id = nova_versao.version_id if hasattr(nova_versao, 'version_id') else 1
                         gerar_tarefas_lembretes_para_evento(
                             db=db,
