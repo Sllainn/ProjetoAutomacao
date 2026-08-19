@@ -63,7 +63,8 @@ def build_job_key(event_id: str, event_version: int, policy_code: str, offset: s
 
 def gerar_tarefas_lembretes_para_evento(db: Session, event_id: str, event_version: int, starts_at: datetime):
     policy_code = "hearing_default_v1"
-    offsets = ["P30D", "P7D", "P1D", "PT2H"]
+    # P0D dispara imediatamente na criação; as demais seguem a régua regressiva
+    offsets = ["P0D", "P30D", "P7D", "P1D", "PT2H"]
 
     agora_utc = datetime.now(timezone.utc)
 
@@ -74,24 +75,37 @@ def gerar_tarefas_lembretes_para_evento(db: Session, event_id: str, event_versio
 
     criadas = 0
     for offset_str in offsets:
-        try:
-            duracao = isodate.parse_duration(offset_str)
-            scheduled_at = starts_at - duracao
-        except Exception as e:
-            print(f"⚠️ Erro ao interpretar o offset {offset_str}: {e}")
-            continue
+        if offset_str == "P0D":
+            scheduled_at = agora_utc
+        else:
+            try:
+                duracao = isodate.parse_duration(offset_str)
+                scheduled_at = starts_at - duracao
+            except Exception as e:
+                print(f"⚠️ Erro ao interpretar o offset {offset_str}: {e}")
+                continue
 
-        if scheduled_at <= agora_utc:
-            continue
+            if scheduled_at <= agora_utc:
+                continue
 
+        job_pk = f"job_{event_id}_{offset_str}".lower()
         idempotency_key = build_job_key(event_id, event_version, policy_code, offset_str)
 
-        existe = db.query(ReminderJob).filter(ReminderJob.idempotency_key == idempotency_key).first()
-        if existe:
+        # Checa se o job já existe pela chave primária ou idempotency_key
+        job_existente = db.query(ReminderJob).filter(
+            (ReminderJob.job_id == job_pk) | (ReminderJob.idempotency_key == idempotency_key)
+        ).first()
+
+        if job_existente:
+            # Se a versão mudou e o job ainda não foi enviado, atualiza o horário e a chave
+            if job_existente.status in ["pending", "retry", "PENDING", "RETRY"]:
+                job_existente.event_version = event_version
+                job_existente.scheduled_time = scheduled_at
+                job_existente.idempotency_key = idempotency_key
             continue
 
         novo_job = ReminderJob(
-            job_id=f"job_{event_id}_{offset_str}".lower(),
+            job_id=job_pk,
             event_id=event_id,
             event_version=event_version,
             policy_code=policy_code,
