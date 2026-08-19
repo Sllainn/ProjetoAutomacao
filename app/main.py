@@ -10,6 +10,7 @@ from app.worker import executar_worker_ciclo
 from app.database import SessionLocal
 from app.services import sincronizacao_completa_banco, renovar_canais_expirando
 from app.config import settings
+from app.models import Contact
 
 notificacoes_recentes = {}
 JANELA_SEGURA_SEGUNDOS = 10 
