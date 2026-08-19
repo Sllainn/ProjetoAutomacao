@@ -49,12 +49,12 @@ def registrar_watch_google(db: Session, webhook_url_base: str):
         db.add(novo_canal)
         db.commit()
 
-        print(f"🔗 Watch registrado no Google com sucesso! (Validade: {validade_dt})")
+        print(f" Watch registrado no Google com sucesso! (Validade: {validade_dt})")
         return resposta
 
     except Exception as e:
         db.rollback()
-        print(f"❌ Erro ao registrar watch no Google: {str(e)}")
+        print(f" Erro ao registrar watch no Google: {str(e)}")
         raise e
 
 def build_job_key(event_id: str, event_version: int, policy_code: str, offset: str) -> str:
@@ -75,14 +75,14 @@ def gerar_tarefas_lembretes_para_evento(db: Session, event_id: str, event_versio
     criadas = 0
     for offset_str in offsets:
         if offset_str == "P0D":
-            # Dá margem de 10s no passado para o worker pegar na hora
+            # Margem de 10s no passado para o worker
             scheduled_at = agora_utc - timedelta(seconds=10)
         else:
             try:
                 duracao = isodate.parse_duration(offset_str)
                 scheduled_at = starts_at - duracao
             except Exception as e:
-                print(f"⚠️ Erro ao interpretar o offset {offset_str}: {e}")
+                print(f" Erro ao interpretar o offset {offset_str}: {e}")
                 continue
 
             if scheduled_at <= agora_utc:
@@ -116,7 +116,7 @@ def gerar_tarefas_lembretes_para_evento(db: Session, event_id: str, event_versio
         criadas += 1
 
     if criadas > 0:
-        print(f"⏰ {criadas} job(s) de lembrete gerado(s) para o evento {event_id}.")
+        print(f"Horário(s) {criadas} job(s) de lembrete gerado(s) para o evento {event_id}.")
 
 
 def sincronizacao_completa_banco():
@@ -124,7 +124,7 @@ def sincronizacao_completa_banco():
 
     try:
         servico = obter_servico_google()
-        print("🚀 Iniciando Sincronização Incremental/Total do Google Calendar...")
+        print(" Inicio da Sincronização Incremental/Total do Google Calendar")
 
         cursor = db.query(SyncCursor).filter(SyncCursor.calendar_id == EMAIL_AGENDA).first()
         sync_token = cursor.sync_token if cursor else None
@@ -149,7 +149,7 @@ def sincronizacao_completa_banco():
                 res = servico.events().list(**params).execute()
             except HttpError as err:
                 if err.resp.status == 410:
-                    print("⚠️ Erro 410: Sync Token expirado. Reiniciando sincronização completa...")
+                    print(" Erro 410: Sync Token expirado")
                     if cursor:
                         db.delete(cursor)
                         db.commit()
@@ -160,7 +160,7 @@ def sincronizacao_completa_banco():
                     raise err
 
             items = res.get('items', [])
-            print(f"📄 Processando lote de {len(items)} eventos...")
+            print(f" Processando eventos {len(items)} ")
 
             for item in items:
                 event_id = item.get('id')
@@ -183,7 +183,7 @@ def sincronizacao_completa_banco():
 
                 evento_valido = False
                 if resultado_parser["status"] == "success":
-                    print(f"✅ Evento {event_id} estruturado pelo Parser!")
+                    print(f" Evento {event_id} estruturado pelo parser")
                     dados_validados = resultado_parser["data"]
                     evento_valido = True
 
@@ -202,7 +202,7 @@ def sincronizacao_completa_banco():
                             contato_db.phone = cliente_tel
                             contato_db.name = item.get('summary', 'Cliente')
                 else:
-                    print(f"⚠️ Evento {event_id} (Aviso Parser): {resultado_parser.get('errors')}")
+                    print(f" Evento {event_id} Aviso Parser: {resultado_parser.get('errors')}")
 
                 evento_db = db.query(CalendarEvent).filter(CalendarEvent.event_id == event_id).first()
 
@@ -232,7 +232,7 @@ def sincronizacao_completa_banco():
                     db.add(nova_versao)
                     db.flush()
 
-                    # Gera jobs apenas se o evento for válido segundo o parser
+                    # Jobs apenas se o evento for válido 
                     if status != "cancelled" and start_dt and evento_valido:
                         versao_id = nova_versao.version_id if hasattr(nova_versao, 'version_id') else 1
                         gerar_tarefas_lembretes_para_evento(
@@ -242,7 +242,7 @@ def sincronizacao_completa_banco():
                             starts_at=start_dt
                         )
                 except Exception as err_versao:
-                    print(f"⚠️ Erro ao salvar versão do evento {event_id}: {err_versao}")
+                    print(f" Erro ao salvar versão do evento {event_id}: {err_versao}")
 
                 total_processados += 1
 
@@ -261,11 +261,11 @@ def sincronizacao_completa_banco():
                     db.commit()
                 break
 
-        print(f"✅ Sincronização concluída com sucesso! Processados: {total_processados}")
+        print(f" Sincronização concluída com sucesso! Processados: {total_processados}")
 
     except Exception as e:
         db.rollback()
-        print(f"❌ Erro durante a sincronização: {str(e)}")
+        print(f" Erro durante a sincronização: {str(e)}")
     finally:
         db.close()
 
@@ -274,9 +274,9 @@ def encerrar_watch_google(db: Session, canal_google: str, resource_id: str):
     body = {"id": canal_google, "resourceId": resource_id}
     try:
         servico.channels().stop(body=body).execute()
-        print(f"🛑 Canal {canal_google} encerrado com sucesso no Google.")
+        print(f" Canal {canal_google} encerrado com sucesso no Google.")
     except Exception as e:
-        print(f"⚠️ Aviso: Não foi possível encerrar o canal {canal_google}: {str(e)}")
+        print(f" Aviso: Não foi possível encerrar o canal {canal_google}: {str(e)}")
 
 def renovar_canais_expirando(db: Session, webhook_url_base: str, horas_margem: int = 24):
     agora = datetime.now(timezone.utc)
@@ -299,4 +299,4 @@ def renovar_canais_expirando(db: Session, webhook_url_base: str, horas_margem: i
             db.commit()
         except Exception as e:
             db.rollback()
-            print(f"❌ Falha ao renovar canal: {str(e)}")
+            print(f" Falha ao renovar canal: {str(e)}")

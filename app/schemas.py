@@ -10,7 +10,7 @@ class HearingData(BaseModel):
     timezone: str
     mode: Literal["online", "presencial", "hibrida"]
     
-    # Usando Optional para campos que podem ser None (conforme o contrato)
+    # Usando Optional para campos que podem ser nulos
     public_link: Optional[HttpUrl] = None
     public_location: Optional[str] = None
     witness_instruction: Optional[str] = None

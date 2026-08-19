@@ -1,4 +1,5 @@
 import time
+import uuid
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, BackgroundTasks, Header, HTTPException, status
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -92,3 +93,42 @@ async def webhook_google_calendar(
         return {"status": "sincronizacao_iniciada"}
 
     return {"status": "ignorado"}
+
+@app.post("/webhook/liderhub")
+async def webhook_liderhub(request: Request):
+    try:
+        dados = await request.json()
+        print(f"📦 Payload recebido do Liderhub: {dados}") # Vai te ajudar a ver os campos exatos no log
+        
+        # O Liderhub pode usar nomenclaturas diferentes, então cobrimos as mais comuns
+        nome = dados.get("nome") or dados.get("name") or dados.get("nome_completo") or "Lead Liderhub"
+        telefone = dados.get("celular") or dados.get("telefone") or dados.get("phone") or dados.get("whatsapp")
+        
+        if not telefone:
+            return {"status": "ignorado", "motivo": "Sem telefone no payload"}
+            
+        # Limpeza bruta: extrai apenas os números do telefone
+        telefone_limpo = "".join(c for c in str(telefone) if c.isdigit())
+        
+        db = SessionLocal()
+        try:
+            # Como sua tabela atual exige um 'event_id' do calendário, criamos um ID amigável para leads
+            fake_event_id = f"lead_{uuid.uuid4().hex[:8]}"
+            
+            novo_contato = Contact(
+                contact_id=f"cnt_{fake_event_id}",
+                event_id=fake_event_id,
+                name=nome,
+                phone=telefone_limpo
+            )
+            db.add(novo_contato)
+            db.commit()
+            print(f"✅ Lead do Liderhub salvo com sucesso: {nome} - {telefone_limpo}")
+        finally:
+            db.close()
+            
+        return {"status": "sucesso"}
+        
+    except Exception as e:
+        print(f"❌ Erro ao processar webhook do Liderhub: {e}")
+        return {"status": "erro", "detalhe": str(e)}

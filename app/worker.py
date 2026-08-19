@@ -104,7 +104,7 @@ def executar_worker_ciclo():
                 job.status = "sent"
                 db.commit()
 
-                print(f"✅ Job {job.job_id} enviado com sucesso! Message ID: {send_result.message_id}")
+                print(f" Job {job.job_id} enviado com sucesso, Message ID: {send_result.message_id}")
 
                 registrar_log(
                     event_name="reminder_job_sent",
@@ -119,7 +119,7 @@ def executar_worker_ciclo():
 
             except Exception as e:
                 db.rollback()
-                print(f"❌ ERRO DETALHADO WHATSAPP / JOB {job.job_id}: {str(e)}")
+                print(f" ERRO WHATSAPP JOB {job.job_id}: {str(e)}")
 
                 MAX_TENTATIVAS = 3
                 if job.attempt_count >= MAX_TENTATIVAS:
@@ -131,7 +131,7 @@ def executar_worker_ciclo():
 
     except Exception as erro_geral:
         db.rollback()
-        print(f"❌ Erro crítico no ciclo do Worker: {str(erro_geral)}")
+        print(f" Erro crítico no ciclo do Worker: {str(erro_geral)}")
     finally:
         db.close()
 

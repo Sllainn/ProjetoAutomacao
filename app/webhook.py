@@ -7,7 +7,7 @@ from app.database import SessionLocal
 from app.models import ReminderJob
 from app.logger import registrar_log
 
-# Usamos o prefix="/webhook" aqui!
+# Usei o prefix="/webhook"
 router = APIRouter(prefix="/webhook", tags=["Webhook WhatsApp"])
 
 WEBHOOK_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "irmaosfett704")

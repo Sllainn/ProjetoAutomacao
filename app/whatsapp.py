@@ -73,12 +73,12 @@ class OfficialWhatsAppClient:
 
         # --- Bloco de envio e captura de logs detalhados ---
         try:
-            print(f"📦 PAYLOAD ENVIADO PARA META: {payload}")
+            print(f" PAYLOAD ENVIADO PARA META: {payload}")
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(self.api_url, json=payload, headers=headers)
                 
                 if response.is_error:
-                    print(f"❌ RESPOSTA COMPLETA DA META [{response.status_code}]: {response.text}")
+                    print(f"RESPOSTA META [{response.status_code}]: {response.text}")
                 
                 response.raise_for_status()
                 
@@ -89,8 +89,8 @@ class OfficialWhatsAppClient:
                 return SendResult(message_id=message_id, status="sent")
                 
         except httpx.HTTPStatusError as e:
-            print(f"❌ HTTPStatusError na API do WhatsApp: {e.response.text}")
+            print(f"HTTPStatusError na API do WhatsApp: {e.response.text}")
             raise e
         except Exception as e:
-            print(f"❌ Erro de conexão/execução no cliente do WhatsApp: {str(e)}")
+            print(f"Erro de conexão no cliente do WhatsApp: {str(e)}")
             raise e
