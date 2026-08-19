@@ -10,7 +10,7 @@ from app.worker import executar_worker_ciclo
 from app.database import SessionLocal
 from app.services import sincronizacao_completa_banco, renovar_canais_expirando
 from app.config import settings
-from app.models import Contact
+from app.models import Contact, CalendarEvent
 
 notificacoes_recentes = {}
 JANELA_SEGURA_SEGUNDOS = 10 
@@ -99,23 +99,35 @@ async def webhook_google_calendar(
 async def webhook_liderhub(request: Request):
     try:
         dados = await request.json()
-        print(f"📦 Payload recebido do Liderhub: {dados}") # Vai te ajudar a ver os campos exatos no log
+        print(f"📦 Payload recebido do Liderhub: {dados}")
         
-        # O Liderhub pode usar nomenclaturas diferentes, então cobrimos as mais comuns
-        nome = dados.get("nome") or dados.get("name") or dados.get("nome_completo") or "Lead Liderhub"
-        telefone = dados.get("celular") or dados.get("telefone") or dados.get("phone") or dados.get("whatsapp")
+        # Puxa o nome e telefone do payload
+        nome = dados.get("nome") or "Lead Liderhub"
+        telefone = dados.get("celular")
         
-        if not telefone:
-            return {"status": "ignorado", "motivo": "Sem telefone no payload"}
+        if not telefone or telefone == '<celular>':
+            # Ignora se vier vazio ou se for a variável não processada de teste
+            return {"status": "ignorado", "motivo": "Telefone inválido ou vazio"}
             
-        # Limpeza bruta: extrai apenas os números do telefone
+        # Extrai apenas os números
         telefone_limpo = "".join(c for c in str(telefone) if c.isdigit())
         
         db = SessionLocal()
         try:
-            # Como sua tabela atual exige um 'event_id' do calendário, criamos um ID amigável para leads
             fake_event_id = f"lead_{uuid.uuid4().hex[:8]}"
             
+            # 1. Cria o evento "fantasma" para satisfazer a regra do banco
+            novo_evento = CalendarEvent(
+                event_id=fake_event_id,
+                calendar_id="liderhub_api", # Marcador para você saber de onde veio
+                titulo=f"Lead: {nome}",
+                status="confirmed",
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc)
+            )
+            db.add(novo_evento)
+            
+            # 2. Cria o contato atrelado ao evento fantasma
             novo_contato = Contact(
                 contact_id=f"cnt_{fake_event_id}",
                 event_id=fake_event_id,
@@ -123,8 +135,13 @@ async def webhook_liderhub(request: Request):
                 phone=telefone_limpo
             )
             db.add(novo_contato)
-            db.commit()
+            
+            db.commit() # Salva os dois juntos no banco
             print(f"✅ Lead do Liderhub salvo com sucesso: {nome} - {telefone_limpo}")
+            
+        except Exception as db_err:
+            db.rollback()
+            raise db_err
         finally:
             db.close()
             
