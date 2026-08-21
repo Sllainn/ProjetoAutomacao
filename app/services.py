@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import isodate
+from dotenv import load_dotenv
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -20,16 +21,29 @@ from app.models import (
 )
 from app.parser import parsear_descricao_evento
 
+# Carrega as variáveis do .env
+load_dotenv()
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CAMINHO_JSON = os.path.join(BASE_DIR, 'config', 'app-sincronizacao-calendario-6fc8146367e1.json')
-EMAIL_AGENDA = 'fettadvogados@gmail.com'
+REL_JSON_PATH = os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON', 'config/credentials.json')
+CAMINHO_JSON = os.path.join(BASE_DIR, REL_JSON_PATH)
+
+EMAIL_AGENDA = os.getenv('GOOGLE_CALENDAR_ID')
+
 
 def obter_servico_google():
+    if not os.path.exists(CAMINHO_JSON):
+        raise FileNotFoundError(f"Arquivo de credenciais não encontrado em: {CAMINHO_JSON}")
+        
     escopos = ['https://www.googleapis.com/auth/calendar']
     credenciais = service_account.Credentials.from_service_account_file(CAMINHO_JSON, scopes=escopos)
     return build('calendar', 'v3', credentials=credenciais)
 
+
 def registrar_watch_google(db: Session, webhook_url_base: str):
+    if not EMAIL_AGENDA:
+        raise ValueError("A variável de ambiente GOOGLE_CALENDAR_ID não foi configurada.")
+
     servico = obter_servico_google()
     channel_id = str(uuid.uuid4())
     url_webhook_completa = f"{webhook_url_base.rstrip('/')}/webhook/google-calendar"
@@ -65,9 +79,11 @@ def registrar_watch_google(db: Session, webhook_url_base: str):
         print(f" Erro ao registrar no Google: {e!s}")
         raise
 
+
 def build_job_key(event_id: str, event_version: int, policy_code: str, offset: str) -> str:
     raw = f"{event_id}|{event_version}|{policy_code}|{offset}"
     return hashlib.sha256(raw.encode()).hexdigest()
+
 
 def gerar_tarefas_lembretes_para_evento(db: Session, event_id: str, event_version: int, starts_at: datetime):
     policy_code = "hearing_default_v1"
@@ -83,7 +99,6 @@ def gerar_tarefas_lembretes_para_evento(db: Session, event_id: str, event_versio
     criadas = 0
     for offset_str in offsets:
         if offset_str == "P0D":
-            # Margem de 10s no passado para o worker
             scheduled_at = agora_utc - timedelta(seconds=10)
         else:
             try:
@@ -124,10 +139,13 @@ def gerar_tarefas_lembretes_para_evento(db: Session, event_id: str, event_versio
         criadas += 1
 
     if criadas > 0:
-        print(f"Horário(s) {criadas} job(s) de lembrete gerado(s){event_id}.")
+        print(f"Horário(s) {criadas} job(s) de lembrete gerado(s) para {event_id}.")
 
 
 def sincronizacao_completa_banco():
+    if not EMAIL_AGENDA:
+        raise ValueError("A variável de ambiente GOOGLE_CALENDAR_ID não foi configurada.")
+
     db = SessionLocal()
 
     try:
@@ -165,10 +183,10 @@ def sincronizacao_completa_banco():
                     page_token = None
                     continue
                 else:
-                    raise 
+                    raise
 
             items = res.get('items', [])
-            print(f"Processando eventos {len(items)} ")
+            print(f"Processando eventos {len(items)}")
 
             for item in items:
                 event_id = item.get('id')
@@ -240,7 +258,6 @@ def sincronizacao_completa_banco():
                     db.add(nova_versao)
                     db.flush()
 
-                    # Jobs se o evento for válido 
                     if status != "cancelled" and start_dt and evento_valido:
                         versao_id = nova_versao.version_id if hasattr(nova_versao, 'version_id') else 1
                         gerar_tarefas_lembretes_para_evento(
@@ -277,6 +294,7 @@ def sincronizacao_completa_banco():
     finally:
         db.close()
 
+
 def encerrar_watch_google(db: Session, canal_google: str, resource_id: str):
     servico = obter_servico_google()
     body = {"id": canal_google, "resourceId": resource_id}
@@ -285,6 +303,7 @@ def encerrar_watch_google(db: Session, canal_google: str, resource_id: str):
         print(f" Canal {canal_google} encerrado com sucesso.")
     except Exception as e:
         print(f" Aviso: Não foi possível encerrar o canal {canal_google}: {e!s}")
+
 
 def renovar_canais_expirando(db: Session, webhook_url_base: str, horas_margem: int = 24):
     agora = datetime.now(timezone.utc)
