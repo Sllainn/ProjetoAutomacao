@@ -222,3 +222,9 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Google Service Account Credentials
+config/*.json
+*.json
+!package.json
+!package-lock.json
