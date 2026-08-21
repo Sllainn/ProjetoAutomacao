@@ -1,11 +1,22 @@
 import os
-
+from dotenv import load_dotenv
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
+# Carrega as variáveis do arquivo .env
+load_dotenv()
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CAMINHO_JSON = os.path.join(BASE_DIR, 'config', 'app-sincronizacao-calendario-6fc8146367e1.json')
-EMAIL_AGENDA = 'fettadvogados@gmail.com'
+REL_JSON_PATH = os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON', 'config/credentials.json')
+CAMINHO_JSON = os.path.join(BASE_DIR, REL_JSON_PATH)
+
+EMAIL_AGENDA = os.getenv('GOOGLE_CALENDAR_ID')
+
+if not EMAIL_AGENDA:
+    raise ValueError("A variável de ambiente GOOGLE_CALENDAR_ID não foi definida no arquivo .env.")
+
+if not os.path.exists(CAMINHO_JSON):
+    raise FileNotFoundError(f"Arquivo de credenciais não encontrado em: {CAMINHO_JSON}")
 
 credenciais = service_account.Credentials.from_service_account_file(
     CAMINHO_JSON, 
@@ -14,7 +25,7 @@ credenciais = service_account.Credentials.from_service_account_file(
 
 servico = build('calendar', 'v3', credentials=credenciais)
 
-print(f" Varrendo TODAS as páginas de eventos da agenda: {EMAIL_AGENDA}...\n")
+print(" Varrendo TODAS as páginas de eventos da agenda configurada via ENV...\n")
 
 total_encontrados = 0
 page_token = None
@@ -43,4 +54,4 @@ while True:
         break
     pagina += 1
 
-print(f"\n Concluído! Total de {total_encontrados} eventos encontrados no total.")
+print(f"\n Concluído! Total de {total_encontrados} eventos encontrados.")
