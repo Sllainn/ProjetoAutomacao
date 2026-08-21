@@ -1,6 +1,8 @@
+
 import httpx
-from typing import Optional
+
 from app.crm import CRMContact
+
 
 class RealCRMClient:
     def __init__(self, base_url: str, api_token: str, timeout: float = 5.0):
@@ -8,7 +10,7 @@ class RealCRMClient:
         self.api_token = api_token
         self.timeout = timeout
 
-    async def get_contact(self, client_external_id: str) -> Optional[CRMContact]:
+    async def get_contact(self, client_external_id: str) -> CRMContact | None:
   
         #Consulta a API real do CRM utilizando httpx.AsyncClient .
    
@@ -54,7 +56,7 @@ class RealCRMClient:
             except httpx.TimeoutException:
                 print(f" CRM Timeout: A requisição para o ID '{client_external_id}' excedeu o tempo limite.")
                 raise
-            except httpx.RequestError as e:
+            except httpx.RequestError:
                 # Log: evita expor dados confidenciais
-                print(f" CRM Erro de Conexão ao buscar contato.")
-                raise e
+                print(" CRM Erro de Conexão ao buscar contato.")
+                raise 

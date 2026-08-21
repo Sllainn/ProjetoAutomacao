@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Protocol, Optional
+from typing import Protocol
+
 
 @dataclass(frozen=True)
 class CRMContact:
@@ -17,7 +18,7 @@ class CRMClient(Protocol):
 
 # Mock para desenvolver sem bloquear o restante 
 class FakeCRMClient:
-    async def get_contact(self, client_external_id: str) -> Optional[CRMContact]:
+    async def get_contact(self, client_external_id: str) -> CRMContact | None:
         if client_external_id == "CRM-TESTE-001":
             return CRMContact(
                 external_id=client_external_id,

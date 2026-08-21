@@ -1,0 +1,8 @@
+﻿@'nrepos:
+  - repo: https://github.com
+    rev: v0.9.3
+    hooks:
+      - id: ruff
+        args: [ --fix ]
+      - id: ruff-format
+'@

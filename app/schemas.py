@@ -1,6 +1,8 @@
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
+
 from pydantic import BaseModel, HttpUrl
+
 
 class HearingData(BaseModel):
     google_event_id: str
@@ -11,7 +13,7 @@ class HearingData(BaseModel):
     mode: Literal["online", "presencial", "hibrida"]
     
     # Usando Optional para campos que podem ser nulos
-    public_link: Optional[HttpUrl] = None
-    public_location: Optional[str] = None
-    witness_instruction: Optional[str] = None
-    public_note: Optional[str] = None
+    public_link: HttpUrl | None = None
+    public_location: str | None = None
+    witness_instruction: str | None = None
+    public_note: str | None = None

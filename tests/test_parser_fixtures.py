@@ -1,4 +1,5 @@
 import pytest
+
 from app.parser import parsear_descricao_evento
 
 # Fixtures simuladas baseadas nas regras 240 a 248

@@ -2,7 +2,7 @@ import json
 import logging
 import sys
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Any
 
 # Configuração base do logger do sistema
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -26,7 +26,7 @@ CAMPOS_PERMITIDOS = {
     "status"
 }
 
-def sanitizar_dados(extras: Dict[str, Any]) -> Dict[str, Any]:
+def sanitizar_dados(extras: dict[str, Any]) -> dict[str, Any]:
     """
     Aplica a regra de Allowlist e Redaction para impedir vazamento de dados sensíveis.
     Remove campos desconhecidos ou confidenciais.
@@ -71,13 +71,13 @@ def registrar_log(
     event_name: str, 
     mensagem: str, 
     nivel: str = "INFO", 
-    correlation_id: Optional[str] = None,
-    calendar_event_id: Optional[str] = None,
-    job_id: Optional[str] = None,
-    attempt: Optional[int] = None,
-    provider_message_id: Optional[str] = None,
-    duration_ms: Optional[int] = None,
-    extras: Optional[Dict[str, Any]] = None
+    correlation_id: str | None = None,
+    calendar_event_id: str | None = None,
+    job_id: str | None = None,
+    attempt: int | None = None,
+    provider_message_id: str | None = None,
+    duration_ms: int | None = None,
+    extras: dict[str, Any] | None = None
 ):
     
     # Função centralizada de log estruturado com bloqueio automático de dados.

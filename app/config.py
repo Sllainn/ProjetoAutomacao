@@ -1,4 +1,4 @@
-from typing import Optional
+
 from pydantic_settings import BaseSettings
 
 
@@ -7,11 +7,11 @@ class Settings(BaseSettings):
     dispatch_enabled: bool = False
     
     # Variáveis mapeadas do seu .env
-    log_level: Optional[str] = "INFO"
-    database_url: Optional[str] = None
-    postgres_password: Optional[str] = None
-    dry_run: Optional[bool] = True
-    default_timezone: Optional[str] = "America/Sao_Paulo"
+    log_level: str | None = "INFO"
+    database_url: str | None = None
+    postgres_password: str | None = None
+    dry_run: bool | None = True
+    default_timezone: str | None = "America/Sao_Paulo"
 
     class Config:
         env_file = ".env"

@@ -1,10 +1,12 @@
-from typing import Optional
-from app.crm import CRMClient, FakeCRMClient, CRMContact
+from app.crm import CRMClient, FakeCRMClient
+
 
 async def resolver_contato_audiencia(
     client_external_id: str, 
-    crm_client: CRMClient = FakeCRMClient()
+    crm_client: CRMClient | None = None
 ) -> dict:
+    if crm_client is None:
+        crm_client = FakeCRMClient()
     """
      Executa o fluxo de busca de contato no CRM seguindo as regras:
      Recebe o identificador explícito
@@ -51,5 +53,5 @@ async def resolver_contato_audiencia(
     except Exception as e:
         return {
             "status": "review_required",
-            "error": f"Erro de comunicação ao consultar o CRM: {str(e)}"
+            "error": f"Erro de comunicação ao consultar o CRM: {e!s}"
         }

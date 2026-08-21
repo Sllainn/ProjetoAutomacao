@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
-from googleapiclient.discovery import build
+
 from autenticar import obter_credenciais
+from googleapiclient.discovery import build
+
 
 def testar_lista_eventos():
     # Obtém as credenciais usando o token.json salvo

@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
@@ -90,12 +91,12 @@ def sincronizacao_completa_banco():
             
             pagina += 1
 
-        print(f"\n SINCRONIZAÇÃO TOTAL CONCLUÍDA COM SUCESSO!")
+        print("\n SINCRONIZAÇÃO TOTAL CONCLUÍDA COM SUCESSO!")
         print(f" Total de eventos processados e salvos no PostgreSQL: {total_processados}")
 
     except Exception as e:
         db.rollback()
-        print(f" Erro na sincronização: {str(e)}")
+        print(f" Erro na sincronização: {e!s}")
     finally:
         db.close()
 

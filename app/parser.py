@@ -1,9 +1,11 @@
-﻿import re
-import html
+﻿import html
+import re
 import unicodedata
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any
+
 from app.schemas import HearingData
+
 
 def normalizar_chave(texto: str) -> str:
     # Faz o tratamento de letras maiúsculas, espaços e acentos dos rótulos.
@@ -31,7 +33,7 @@ def limpar_html(texto: str) -> str:
     texto = re.sub(r'<[^<]+?>', '', texto)
     return texto
 
-def parsear_descricao_evento(event_id: str, descricao: str, start_dt: datetime, timezone_str: str) -> Dict[str, Any]:
+def parsear_descricao_evento(event_id: str, descricao: str, start_dt: datetime, timezone_str: str) -> dict[str, Any]:
     """
     Realiza o parse da descrição humana do evento do Google Calendar
     e valida contra o contrato de dados HearingData.
@@ -127,6 +129,6 @@ def parsear_descricao_evento(event_id: str, descricao: str, start_dt: datetime, 
     except Exception as e:
         return {
             "status": "review_required",
-            "errors": [f"Erro de validação no contrato Pydantic: {str(e)}"],
+            "errors": [f"Erro de validação no contrato Pydantic: {e!s}"],
             "raw_data": dados_extraidos
         }

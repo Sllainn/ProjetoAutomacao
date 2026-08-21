@@ -1,6 +1,8 @@
 # registrar_localtunnel.py
 from app.database import SessionLocal
-from app.services import registrar_watch_google  # Função que faz o servico.events().watch()
+from app.services import (
+    registrar_watch_google,  # Função que faz o servico.events().watch()
+)
 
 URL_LOCALTUNNEL = "https://sublet-detest-cash.ngrok-free.dev"
 

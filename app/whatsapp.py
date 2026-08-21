@@ -1,6 +1,8 @@
-import httpx
-from typing import Protocol, List
 from dataclasses import dataclass
+from typing import Protocol
+
+import httpx
+
 
 @dataclass(frozen=True)
 class SendResult:
@@ -14,7 +16,7 @@ class WhatsAppClient(Protocol):
         phone_e164: str,
         template_name: str,
         language: str,
-        parameters: List[str],
+        parameters: list[str],
         idempotency_key: str,
     ) -> SendResult:
         ...
@@ -37,7 +39,7 @@ class OfficialWhatsAppClient:
         phone_e164: str,
         template_name: str,
         language: str,
-        parameters: List[str],
+        parameters: list[str],
         idempotency_key: str,
     ) -> SendResult:
         headers = {
@@ -90,7 +92,7 @@ class OfficialWhatsAppClient:
                 
         except httpx.HTTPStatusError as e:
             print(f"HTTPStatusError na API do WhatsApp: {e.response.text}")
-            raise e
+            raise 
         except Exception as e:
-            print(f"Erro de conexão no cliente do WhatsApp: {str(e)}")
-            raise e
+            print(f"Erro de conexão no cliente do WhatsApp: {e!s}")
+            raise 

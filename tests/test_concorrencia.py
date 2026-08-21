@@ -1,8 +1,10 @@
 import uuid
 from datetime import datetime, timezone
+
 from app.database import SessionLocal
 from app.models import CalendarEvent, ReminderJob
 from app.worker import executar_worker_ciclo
+
 
 def test_revalidacao_versao_obsoleta():
     """
@@ -57,9 +59,9 @@ def test_revalidacao_versao_obsoleta():
 
         print(" Teste Crítico de Concorrência e Remarcação executado com sucesso!")
 
-    except Exception as e:
+    except Exception:
         db.rollback()
-        raise e
+        raise 
     finally:
         # Limpeza segura do banco de teste
         try:

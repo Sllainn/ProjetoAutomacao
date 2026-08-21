@@ -1,13 +1,13 @@
-﻿import time
-import random
-import asyncio
+﻿import asyncio
 import os
+import time
 from datetime import datetime, timezone
-from sqlalchemy.orm import Session
+
 from app.database import SessionLocal
-from app.models import ReminderJob, CalendarEvent, Contact
 from app.logger import registrar_log
+from app.models import CalendarEvent, Contact, ReminderJob
 from app.whatsapp import OfficialWhatsAppClient
+
 
 def executar_worker_ciclo():
     """
@@ -118,7 +118,7 @@ def executar_worker_ciclo():
 
             except Exception as e:
                 db.rollback()
-                print(f" ERRO WHATSAPP JOB {job.job_id}: {str(e)}")
+                print(f" ERRO WHATSAPP JOB {job.job_id}: {e!s}")
 
                 MAX_TENTATIVAS = 3
                 if job.attempt_count >= MAX_TENTATIVAS:
@@ -130,7 +130,7 @@ def executar_worker_ciclo():
 
     except Exception as erro_geral:
         db.rollback()
-        print(f" Erro crítico no ciclo do Worker: {str(erro_geral)}")
+        print(f" Erro crítico no ciclo do Worker: {erro_geral!s}")
     finally:
         db.close()
 

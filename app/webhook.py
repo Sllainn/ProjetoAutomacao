@@ -1,11 +1,12 @@
-import os
-import hmac
 import hashlib
-from fastapi import APIRouter, Request, HTTPException, status
-from sqlalchemy.orm import Session
+import hmac
+import os
+
+from fastapi import APIRouter, HTTPException, Request, status
+
 from app.database import SessionLocal
-from app.models import ReminderJob
 from app.logger import registrar_log
+from app.models import ReminderJob
 
 # Usei o prefix="/webhook"
 router = APIRouter(prefix="/webhook", tags=["Webhook WhatsApp"])
@@ -71,7 +72,6 @@ async def receber_evento_webhook(request: Request):
                 for stat in statuses:
                     wamid = stat.get("id")
                     status_mensagem = stat.get("status")
-                    timestamp = stat.get("timestamp")
                     
                     registrar_log(
                         event_name="whatsapp_status_received",
@@ -89,7 +89,7 @@ async def receber_evento_webhook(request: Request):
         
     except Exception as e:
         db.rollback()
-        registrar_log(event_name="webhook_processing_error", mensagem=f"Erro ao processar webhook: {str(e)}", nivel="ERROR")
+        registrar_log(event_name="webhook_processing_error", mensagem=f"Erro ao processar webhook: {e!s}", nivel="ERROR")
         return {"status": "error", "detail": str(e)}
     finally:
         db.close()

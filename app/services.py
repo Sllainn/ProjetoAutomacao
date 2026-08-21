@@ -1,16 +1,24 @@
-﻿import os
+﻿import hashlib
+import os
 import uuid
-import hashlib
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 import isodate
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from sqlalchemy.orm import Session
-from app.parser import parsear_descricao_evento
 
 from app.database import SessionLocal
-from app.models import CalendarEvent, EventVersion, CalendarChannel, ReminderJob, SyncCursor, Contact
+from app.models import (
+    CalendarChannel,
+    CalendarEvent,
+    Contact,
+    EventVersion,
+    ReminderJob,
+    SyncCursor,
+)
+from app.parser import parsear_descricao_evento
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CAMINHO_JSON = os.path.join(BASE_DIR, 'config', 'app-sincronizacao-calendario-6fc8146367e1.json')
@@ -54,8 +62,8 @@ def registrar_watch_google(db: Session, webhook_url_base: str):
 
     except Exception as e:
         db.rollback()
-        print(f" Erro ao registrar no Google: {str(e)}")
-        raise e
+        print(f" Erro ao registrar no Google: {e!s}")
+        raise
 
 def build_job_key(event_id: str, event_version: int, policy_code: str, offset: str) -> str:
     raw = f"{event_id}|{event_version}|{policy_code}|{offset}"
@@ -157,7 +165,7 @@ def sincronizacao_completa_banco():
                     page_token = None
                     continue
                 else:
-                    raise err
+                    raise 
 
             items = res.get('items', [])
             print(f"Processando eventos {len(items)} ")
@@ -265,7 +273,7 @@ def sincronizacao_completa_banco():
 
     except Exception as e:
         db.rollback()
-        print(f" Erro durante a sincronização: {str(e)}")
+        print(f" Erro durante a sincronização: {e!s}")
     finally:
         db.close()
 
@@ -276,7 +284,7 @@ def encerrar_watch_google(db: Session, canal_google: str, resource_id: str):
         servico.channels().stop(body=body).execute()
         print(f" Canal {canal_google} encerrado com sucesso.")
     except Exception as e:
-        print(f" Aviso: Não foi possível encerrar o canal {canal_google}: {str(e)}")
+        print(f" Aviso: Não foi possível encerrar o canal {canal_google}: {e!s}")
 
 def renovar_canais_expirando(db: Session, webhook_url_base: str, horas_margem: int = 24):
     agora = datetime.now(timezone.utc)
@@ -299,4 +307,4 @@ def renovar_canais_expirando(db: Session, webhook_url_base: str, horas_margem: i
             db.commit()
         except Exception as e:
             db.rollback()
-            print(f" Falha ao renovar canal: {str(e)}")
+            print(f" Falha ao renovar canal: {e!s}")

@@ -1,16 +1,18 @@
 import time
 import uuid
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, BackgroundTasks, Header, HTTPException, status
+from datetime import datetime, timezone
+
 from apscheduler.schedulers.background import BackgroundScheduler
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 from sqlalchemy import text
 
+from app.config import settings
+from app.database import SessionLocal
+from app.models import CalendarEvent, Contact
+from app.services import renovar_canais_expirando, sincronizacao_completa_banco
 from app.webhook import router as webhook_router
 from app.worker import executar_worker_ciclo
-from app.database import SessionLocal
-from app.services import sincronizacao_completa_banco, renovar_canais_expirando
-from app.config import settings
-from app.models import Contact, CalendarEvent
 
 notificacoes_recentes = {}
 JANELA_SEGURA_SEGUNDOS = 10 
@@ -54,7 +56,7 @@ async def health():
     db = SessionLocal()
     try:
         db.execute(text("SELECT 1"))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=503, detail="Database unhealthy")
     finally:
         db.close()
@@ -139,9 +141,9 @@ async def webhook_liderhub(request: Request):
             db.commit() 
             print(f" Lead do Liderhub salvo com sucesso: {nome} - {telefone_limpo}")
             
-        except Exception as db_err:
+        except Exception:
             db.rollback()
-            raise db_err
+            raise
         finally:
             db.close()
             

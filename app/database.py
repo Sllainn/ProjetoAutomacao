@@ -1,6 +1,8 @@
 ﻿import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from app.config import settings
 
 # Prioriza a DATABASE_URL completa que vem do ambiente (Cloud Run / Supabase)

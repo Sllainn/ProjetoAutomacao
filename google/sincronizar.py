@@ -1,5 +1,6 @@
-from googleapiclient.discovery import build
 from autenticar import obter_credenciais
+from googleapiclient.discovery import build
+
 
 def sincronizacao_inicial():
     creds = obter_credenciais()
@@ -44,7 +45,7 @@ def sincronizacao_inicial():
 
    
     if next_sync_token:  # Persistir o nextSyncToken no banco de dados
-        print(f"\n Sincronização concluída")
+        print("\n Sincronização concluída")
         print(f" SyncToken Guardado: {next_sync_token}")
 
 if __name__ == '__main__':

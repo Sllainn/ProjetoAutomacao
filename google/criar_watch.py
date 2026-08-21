@@ -1,6 +1,7 @@
 import uuid
-from googleapiclient.discovery import build
+
 from autenticar import obter_credenciais
+from googleapiclient.discovery import build
 
 # Importe sua sessão do banco de dados 
 
