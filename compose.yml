@@ -10,18 +10,19 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
   db:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: fett_ia
-      POSTGRES_PASSWORD: 2loe4v8i
-      POSTGRES_DB: fett_ia
+      POSTGRES_USER: ${POSTGRES_USER:-fett_ia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-fett_ia}
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fett_ia -d fett_ia"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-fett_ia} -d $${POSTGRES_DB:-fett_ia}"]
       interval: 5s
       timeout: 3s
       retries: 10
