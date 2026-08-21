@@ -9,7 +9,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("fett_sync")
 logger.handlers = []  # Remove handlers padrão para evitar logs duplicados
 
-# ALLOWLIST de campos estritamente permitidos nos logs estruturados
+# Campos estritamente permitidos
 CAMPOS_PERMITIDOS = {
     "timestamp",
     "level",
@@ -29,12 +29,12 @@ CAMPOS_PERMITIDOS = {
 def sanitizar_dados(extras: Dict[str, Any]) -> Dict[str, Any]:
     """
     Aplica a regra de Allowlist e Redaction para impedir vazamento de dados sensíveis.
-    Remove campos desconhecidos ou confidenciais (ex: telefones, payloads brutos).
+    Remove campos desconhecidos ou confidenciais.
     """
     dados_limpos = {}
     for chave, valor in extras.items():
         if chave in CAMPOS_PERMITIDOS:
-            # Se houver string parecida com telefone ou token, podemos mascarar (Redaction)
+            # Se houver string parecida com telefone ou token, podemos mascarar
             if isinstance(valor, str) and ("token" in chave.lower() or "secret" in chave.lower()):
                 dados_limpos[chave] = "[REDACTED]"
             else:
@@ -42,10 +42,8 @@ def sanitizar_dados(extras: Dict[str, Any]) -> Dict[str, Any]:
     return dados_limpos
 
 class StructuredJsonFormatter(logging.Formatter):
-    """
-    Formatador para garantir logs em formato JSON estrito, 
-    filtrando apenas campos permitidos.
-    """
+
+   # Formatador para garantir logs em formato JSON estrito, filtrando apenas campos permitidos.
     def format(self, record: logging.LogRecord) -> str:
         dados_extras = getattr(record, "extra_data", {})
         dados_filtrados = sanitizar_dados(dados_extras)
@@ -59,7 +57,6 @@ class StructuredJsonFormatter(logging.Formatter):
             **dados_filtrados
         }
         
-        # Garante que as chaves finais também obedeçam rigorosamente à allowlist
         log_final = {k: v for k, v in log_payload.items() if k in CAMPOS_PERMITIDOS}
         
         return json.dumps(log_final, ensure_ascii=False)
@@ -82,9 +79,8 @@ def registrar_log(
     duration_ms: Optional[int] = None,
     extras: Optional[Dict[str, Any]] = None
 ):
-    """
-    Função centralizada de log estruturado com bloqueio automático de dados confidenciais.
-    """
+    
+    # Função centralizada de log estruturado com bloqueio automático de dados.
     extra_data = {}
     if correlation_id:
         extra_data["correlation_id"] = correlation_id

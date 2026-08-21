@@ -15,7 +15,7 @@ if not database_url:
     DB_NAME = os.getenv("DB_NAME", "fett_ia")
     database_url = f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-# Garante que o driver do SQLAlchemy utilize o psycopg correto
+# Garante que o driver do SQLAlchemy utilize o psycopg certo
 if database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
@@ -27,7 +27,7 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
-    """Gerador de sessão do banco de dados para injeção de dependência no FastAPI."""
+    #Gerador de sessão do banco de dados para injeção de dependência no FastAPI.
     db = SessionLocal()
     try:
         yield db

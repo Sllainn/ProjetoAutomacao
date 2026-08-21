@@ -17,7 +17,7 @@ JANELA_SEGURA_SEGUNDOS = 10
 URL_PUBLICA_NGROK = "https://sublet-detest-cash.ngrok-free.dev" 
 
 def tarefas_agendadas():
-    print("⏰ Iniciando rotina de segurança programada...")
+    print("Iniciando rotina de segurança programada")
     db = SessionLocal()
     try:
         sincronizacao_completa_banco()
@@ -32,14 +32,14 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(executar_worker_ciclo, 'interval', seconds=15, id="worker_ciclo_job", replace_existing=True)
     
     scheduler.start()
-    print("⏱️ APScheduler iniciado! Sincronização e Worker ativos em background.")
+    print(" APScheduler iniciado, sincronização e worker ativos.")
     
     yield  
     
     scheduler.shutdown()
-    print("🛑 APScheduler desligado.")
+    print(" APScheduler desligado.")
 
-# redirect_slashes=False evita que o FastAPI bloqueie ou mude requisições GET com/sem barra no final
+# redirect_slashes=False evita que o FastAPI bloqueie ou mude requisições GET
 app = FastAPI(title="FETT Calendar & WhatsApp Sync API", lifespan=lifespan, redirect_slashes=False)
 
 # Inclui os endpoints do WhatsApp (/webhook)
@@ -99,14 +99,14 @@ async def webhook_google_calendar(
 async def webhook_liderhub(request: Request):
     try:
         dados = await request.json()
-        print(f"📦 Payload recebido do Liderhub: {dados}")
+        print(f"Payload recebido do Liderhub: {dados}")
         
         nome = dados.get("nome") or "Lead Liderhub"
         telefone = dados.get("celular")
         
         # Trava de segurança para ignorar o teste vazio do LiderHub
         if not telefone or telefone == '<celular>':
-            print("⚠️ Webhook ignorado: Payload de teste do LiderHub sem dados reais.")
+            print(" Webhook ignorado: Payload de teste sem dados reais.")
             return {"status": "ignorado", "motivo": "Payload de teste"}
             
         telefone_limpo = "".join(c for c in str(telefone) if c.isdigit())
@@ -125,7 +125,7 @@ async def webhook_liderhub(request: Request):
                 end_time=datetime.now(timezone.utc)
             )
             db.add(novo_evento)
-            db.flush() # <-- O SEGREDO ESTÁ AQUI: Força o banco a registrar o evento agora
+            db.flush() 
             
             # 2. Cria o contato em seguida
             novo_contato = Contact(
@@ -136,8 +136,8 @@ async def webhook_liderhub(request: Request):
             )
             db.add(novo_contato)
             
-            db.commit() # Salva tudo de forma definitiva
-            print(f"✅ Lead do Liderhub salvo com sucesso: {nome} - {telefone_limpo}")
+            db.commit() 
+            print(f" Lead do Liderhub salvo com sucesso: {nome} - {telefone_limpo}")
             
         except Exception as db_err:
             db.rollback()
@@ -148,5 +148,5 @@ async def webhook_liderhub(request: Request):
         return {"status": "sucesso"}
         
     except Exception as e:
-        print(f"❌ Erro ao processar webhook do Liderhub: {e}")
+        print(f" Erro ao processar webhook do Liderhub: {e}")
         return {"status": "erro", "detalhe": str(e)}

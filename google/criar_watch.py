@@ -1,22 +1,17 @@
 import uuid
-import datetime
 from googleapiclient.discovery import build
 from autenticar import obter_credenciais
 
-# Importe sua sessão do banco de dados para o Passo 164
-# from database import SessionLocal, CanalWatchModel
+# Importe sua sessão do banco de dados 
 
 def criar_canal_watch():
     creds = obter_credenciais()
     service = build('calendar', 'v3', credentials=creds)
 
-    # Passo 163: Gera um ID único para este canal
+    # Gera um ID único para este canal
     channel_id = str(uuid.uuid4())
     
     # URL HTTPS do seu webhook que receberá as notificações do Google
-    # Altere para a sua URL do ngrok ou domínio de homologação
-    # Substitua pela URL gerada pelo localtunnel + a rota do seu backend
-
     WEBHOOK_URL = "https://loud-frogs-happen.loca.lt/t/webhook/google-calendar"
 
     body = {

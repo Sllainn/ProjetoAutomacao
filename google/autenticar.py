@@ -2,14 +2,13 @@ import os.path
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
 
-# Passo 155: Apenas escopo de leitura do calendário
+# Apenas escopo de leitura do calendário
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
 def obter_credenciais():
     creds = None
-    # O arquivo token.json armazena os tokens de acesso e de atualização (refresh token)
+    # O arquivo token.json armazena os tokens de acesso e de atualização do usuário, e é criado automaticamente quando o fluxo de autorização é concluído pela primeira vez.
     if os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
     
@@ -22,7 +21,7 @@ def obter_credenciais():
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
             creds = flow.run_local_server(port=0)
         
-        # Passo 158: Salva as credenciais/refresh token localmente para os próximos acessos
+        # Salva as credenciais/refresh token localmente para os próximos acessos
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
 

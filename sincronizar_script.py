@@ -10,7 +10,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CAMINHO_JSON = os.path.join(BASE_DIR, 'config', 'app-sincronizacao-calendario-6fc8146367e1.json')
 EMAIL_AGENDA = 'fettadvogados@gmail.com'
 
-
 def sincronizacao_completa_banco():
     db = SessionLocal()
     
@@ -19,7 +18,7 @@ def sincronizacao_completa_banco():
         credenciais = service_account.Credentials.from_service_account_file(CAMINHO_JSON, scopes=escopos)
         servico = build('calendar', 'v3', credentials=credenciais)
 
-        print(f"🚀 Iniciando Carga Total do Google Calendar para: {EMAIL_AGENDA}")
+        print(f" Iniciando Google Calendar para: {EMAIL_AGENDA}")
 
         page_token = None
         total_processados = 0
@@ -39,7 +38,7 @@ def sincronizacao_completa_banco():
             res = servico.events().list(**params).execute()
             items = res.get('items', [])
 
-            print(f"📄 Processando Página {pagina}: {len(items)} eventos lidos...")
+            print(f" Processando Página {pagina}: {len(items)} eventos lidos...")
 
             for item in items:
                 event_id = item.get('id')
@@ -79,7 +78,7 @@ def sincronizacao_completa_banco():
                     db.add(nova_versao)
                     db.flush()
                 except Exception as err_versao:
-                    print(f"⚠️ Aviso: Não foi possível salvar versão para o evento {event_id}: {err_versao}")
+                    print(f" Aviso: Não foi possível salvar versão para o evento {event_id}: {err_versao}")
 
                 total_processados += 1
 
@@ -91,12 +90,12 @@ def sincronizacao_completa_banco():
             
             pagina += 1
 
-        print(f"\n✅ SINCRONIZAÇÃO TOTAL CONCLUÍDA COM SUCESSO!")
-        print(f"📊 Total de eventos processados e salvos no PostgreSQL: {total_processados}")
+        print(f"\n SINCRONIZAÇÃO TOTAL CONCLUÍDA COM SUCESSO!")
+        print(f" Total de eventos processados e salvos no PostgreSQL: {total_processados}")
 
     except Exception as e:
         db.rollback()
-        print(f"❌ Erro na sincronização: {str(e)}")
+        print(f" Erro na sincronização: {str(e)}")
     finally:
         db.close()
 

@@ -55,7 +55,7 @@ def test_revalidacao_versao_obsoleta():
         assert job_no_db.status in ("cancelled_event", "cancelled", "cancelled_version"), \
             f"O job deveria ter sido cancelado, mas está com status: {job_no_db.status}"
 
-        print("✅ Teste Crítico de Concorrência e Remarcação executado com sucesso!")
+        print(" Teste Crítico de Concorrência e Remarcação executado com sucesso!")
 
     except Exception as e:
         db.rollback()

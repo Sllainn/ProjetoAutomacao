@@ -49,12 +49,12 @@ def registrar_watch_google(db: Session, webhook_url_base: str):
         db.add(novo_canal)
         db.commit()
 
-        print(f" Watch registrado no Google com sucesso! (Validade: {validade_dt})")
+        print(f" Watch registrado no Google! (Validade: {validade_dt})")
         return resposta
 
     except Exception as e:
         db.rollback()
-        print(f" Erro ao registrar watch no Google: {str(e)}")
+        print(f" Erro ao registrar no Google: {str(e)}")
         raise e
 
 def build_job_key(event_id: str, event_version: int, policy_code: str, offset: str) -> str:
@@ -116,7 +116,7 @@ def gerar_tarefas_lembretes_para_evento(db: Session, event_id: str, event_versio
         criadas += 1
 
     if criadas > 0:
-        print(f"Horário(s) {criadas} job(s) de lembrete gerado(s) para o evento {event_id}.")
+        print(f"Horário(s) {criadas} job(s) de lembrete gerado(s){event_id}.")
 
 
 def sincronizacao_completa_banco():
@@ -149,7 +149,7 @@ def sincronizacao_completa_banco():
                 res = servico.events().list(**params).execute()
             except HttpError as err:
                 if err.resp.status == 410:
-                    print(" Erro 410: Sync Token expirado")
+                    print(" Erro 410: SyncToken expirado")
                     if cursor:
                         db.delete(cursor)
                         db.commit()
@@ -160,7 +160,7 @@ def sincronizacao_completa_banco():
                     raise err
 
             items = res.get('items', [])
-            print(f" Processando eventos {len(items)} ")
+            print(f"Processando eventos {len(items)} ")
 
             for item in items:
                 event_id = item.get('id')
@@ -232,7 +232,7 @@ def sincronizacao_completa_banco():
                     db.add(nova_versao)
                     db.flush()
 
-                    # Jobs apenas se o evento for válido 
+                    # Jobs se o evento for válido 
                     if status != "cancelled" and start_dt and evento_valido:
                         versao_id = nova_versao.version_id if hasattr(nova_versao, 'version_id') else 1
                         gerar_tarefas_lembretes_para_evento(
@@ -274,7 +274,7 @@ def encerrar_watch_google(db: Session, canal_google: str, resource_id: str):
     body = {"id": canal_google, "resourceId": resource_id}
     try:
         servico.channels().stop(body=body).execute()
-        print(f" Canal {canal_google} encerrado com sucesso no Google.")
+        print(f" Canal {canal_google} encerrado com sucesso.")
     except Exception as e:
         print(f" Aviso: Não foi possível encerrar o canal {canal_google}: {str(e)}")
 

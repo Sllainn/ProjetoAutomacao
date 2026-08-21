@@ -13,7 +13,7 @@ credenciais = service_account.Credentials.from_service_account_file(
 
 servico = build('calendar', 'v3', credentials=credenciais)
 
-print(f"🔍 Varrendo TODAS as páginas de eventos da agenda: {EMAIL_AGENDA}...\n")
+print(f" Varrendo TODAS as páginas de eventos da agenda: {EMAIL_AGENDA}...\n")
 
 total_encontrados = 0
 page_token = None
@@ -30,7 +30,7 @@ while True:
     resposta = servico.events().list(**params).execute()
     eventos = resposta.get('items', [])
     
-    print(f"📄 Página {pagina}: {len(eventos)} eventos retornados.")
+    print(f" Página {pagina}: {len(eventos)} eventos retornados.")
     total_encontrados += len(eventos)
 
     for item in eventos:
@@ -42,4 +42,4 @@ while True:
         break
     pagina += 1
 
-print(f"\n✅ Concluído! Total de {total_encontrados} eventos encontrados no total.")
+print(f"\n Concluído! Total de {total_encontrados} eventos encontrados no total.")

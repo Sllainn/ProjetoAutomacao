@@ -15,7 +15,7 @@ class CRMClient(Protocol):
     ) -> CRMContact | None:
         ...
 
-# --- Mock para desenvolver sem bloquear o restante (Regra de Ouro) ---
+# Mock para desenvolver sem bloquear o restante 
 class FakeCRMClient:
     async def get_contact(self, client_external_id: str) -> Optional[CRMContact]:
         if client_external_id == "CRM-TESTE-001":

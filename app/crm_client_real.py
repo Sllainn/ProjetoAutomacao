@@ -9,10 +9,9 @@ class RealCRMClient:
         self.timeout = timeout
 
     async def get_contact(self, client_external_id: str) -> Optional[CRMContact]:
-        """
-        Consulta a API real do CRM utilizando httpx.AsyncClient com tratamento de erros
-        e logs seguros (sem expor tokens ou dados sensíveis).
-        """
+  
+        #Consulta a API real do CRM utilizando httpx.AsyncClient .
+   
         url = f"{self.base_url}/contacts/{client_external_id}"
         headers = {
             "Authorization": f"Bearer {self.api_token}",
@@ -25,26 +24,26 @@ class RealCRMClient:
                 
                 # Tratamento de Erros conforme o Troubleshooting
                 if response.status_code == 404:
-                    print(f"ℹ️ CRM: Contato externo '{client_external_id}' não encontrado.")
+                    print(f"CRM: Contato externo '{client_external_id}' não encontrado.")
                     return None
                 
                 if response.status_code in (401, 403):
-                    print("❌ CRM Erro 401/403: Falha de autenticação ou permissão (verifique o token de ambiente).")
+                    print("CRM Erro 401/403: Falha de autenticação ou permissão.")
                     raise PermissionError("Erro de autenticação ou escopo inválido no CRM.")
                 
                 if response.status_code == 429:
                     retry_after = response.headers.get("Retry-After", "desconhecido")
-                    print(f"⚠️ CRM Erro 429: Limite da API atingido (Rate Limit). Tente novamente após: {retry_after}s.")
+                    print(f" CRM Erro 429: Limite da API atingido: {retry_after}s.")
                     raise ConnectionError("Limite de requisições da API do CRM excedido.")
                 
                 if response.status_code >= 500:
-                    print(f"❌ CRM Erro {response.status_code}: Instabilidade temporária no servidor do fornecedor.")
+                    print(f" CRM Erro {response.status_code}: Instabilidade temporária no servidor.")
                     raise ConnectionError("Erro interno no servidor do CRM.")
 
                 response.raise_for_status()
                 data = response.json()
 
-                # Mapeia a resposta da API para a dataclass interna CRMContact
+                # Mapeia a resposta da API para a dataclass interna
                 return CRMContact(
                     external_id=data.get("external_id"),
                     display_name=data.get("display_name"),
@@ -53,9 +52,9 @@ class RealCRMClient:
                 )
 
             except httpx.TimeoutException:
-                print(f"⏳ CRM Timeout: A requisição para o ID '{client_external_id}' excedeu o tempo limite.")
+                print(f" CRM Timeout: A requisição para o ID '{client_external_id}' excedeu o tempo limite.")
                 raise
             except httpx.RequestError as e:
-                # Log seguro: evita expor dados confidenciais na stack trace
-                print(f"❌ CRM Erro de Conexão ao buscar contato.")
+                # Log: evita expor dados confidenciais
+                print(f" CRM Erro de Conexão ao buscar contato.")
                 raise e

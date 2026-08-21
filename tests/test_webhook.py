@@ -1,7 +1,6 @@
 import hmac
 import hashlib
 import json
-import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 from app.webhook import WEBHOOK_VERIFY_TOKEN, META_APP_SECRET
@@ -9,7 +8,7 @@ from app.webhook import WEBHOOK_VERIFY_TOKEN, META_APP_SECRET
 client = TestClient(app)
 
 def gerar_assinatura_valida(payload: bytes, secret: str) -> str:
-    """Gera um cabeçalho X-Hub-Signature-256 válido para os testes."""
+    # Gera um cabeçalho X-Hub-Signature-256 válido para os testes.
     mac = hmac.new(
         secret.encode("utf-8"),
         msg=payload,
@@ -19,7 +18,7 @@ def gerar_assinatura_valida(payload: bytes, secret: str) -> str:
 
 
 def test_verificacao_webhook_sucesso():
-    """Testa a validação GET (challenge) exigida pela Meta."""
+    # Testa a validação GET exigida pela Meta.
     response = client.get(
         "/webhook",
         params={
@@ -33,7 +32,7 @@ def test_verificacao_webhook_sucesso():
 
 
 def test_verificacao_webhook_token_invalido():
-    """Testa a recusa do GET caso o token de verificação esteja errado."""
+    # Testa a recusa do GET caso o token de verificação esteja errado.
     response = client.get(
         "/webhook",
         params={
@@ -46,7 +45,7 @@ def test_verificacao_webhook_token_invalido():
 
 
 def test_webhook_post_assinatura_invalida():
-    """Testa a rejeição (401) de um POST com assinatura ausente ou incorreta."""
+    # Testa a 401 de um POST com assinatura nula ou incorreta.
     payload = json.dumps({"object": "whatsapp_business_account"}).encode("utf-8")
     
     response = client.post(
@@ -58,7 +57,7 @@ def test_webhook_post_assinatura_invalida():
 
 
 def test_webhook_post_status_sucesso():
-    """Testa o processamento bem-sucedido de um evento de status da Meta."""
+    # Testa o processamento bem-sucedido de um evento de status da Meta.
     payload_dict = {
         "object": "whatsapp_business_account",
         "entry": [

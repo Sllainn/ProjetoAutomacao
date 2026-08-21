@@ -6,7 +6,7 @@ from typing import Dict, Any
 from app.schemas import HearingData
 
 def normalizar_chave(texto: str) -> str:
-    """Normaliza maiúsculas, espaços e acentos dos rótulos."""
+    # Faz o tratamento de letras maiúsculas, espaços e acentos dos rótulos.
     texto = texto.strip().upper()
     texto = ''.join(
         c for c in unicodedata.normalize('NFD', texto)
@@ -15,7 +15,7 @@ def normalizar_chave(texto: str) -> str:
     return texto
 
 def limpar_html(texto: str) -> str:
-    """Converte tags HTML comuns em quebras de linha e remove marcações restantes."""
+    # Converte tags HTML comuns em quebras de linha e remove marcações restantes.
     if not texto:
         return ""
     
@@ -27,7 +27,7 @@ def limpar_html(texto: str) -> str:
     texto = re.sub(r'(?i)<br\s*/?>', '\n', texto)
     texto = re.sub(r'(?i)</?(div|p|tr|li)[^>]*>', '\n', texto)
 
-    # Remove quaisquer outras tags HTML remanescentes (como <b>, <a>, <span>)
+    # Remove quaisquer outras tags HTML
     texto = re.sub(r'<[^<]+?>', '', texto)
     return texto
 
@@ -49,8 +49,6 @@ def parsear_descricao_evento(event_id: str, descricao: str, start_dt: datetime, 
     }
 
     erros = []
-    
-    # Higieniza HTML antes de quebrar em linhas
     texto_puro = limpar_html(descricao)
     linhas = texto_puro.splitlines()
 
@@ -82,16 +80,18 @@ def parsear_descricao_evento(event_id: str, descricao: str, start_dt: datetime, 
 
             dados_extraidos[campo_destino] = valor_limpo
 
-    # Validação do Número do Processo (Padrão CNJ)
+    # Validação do Número do Processo
     proc_num = dados_extraidos.get("process_number", "")
     padrao_cnj = r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$"
     if not proc_num or not re.match(padrao_cnj, proc_num):
         erros.append(f"Número de processo ausente, inválido ou fora do padrão CNJ: '{proc_num}'")
 
-    # Validação do ID do Cliente (Telefone)
+    # Validação do ID do Cliente
     cliente_id = dados_extraidos.get("client_external_id", "")
+
     # Remove eventuais caracteres não numéricos do telefone
     cliente_id_limpo = re.sub(r"\D", "", cliente_id)
+    
     if not cliente_id_limpo:
         erros.append("O identificador do cliente (CLIENTE_ID) está ausente ou vazio.")
     else:

@@ -23,7 +23,7 @@ class OfficialWhatsAppClient:
     def __init__(self, api_url: str, token: str, timeout: float = 15.0):
         self.api_url = api_url.rstrip("/")
         
-        # Filtro de limpeza do token
+        # Limpeza do token
         clean_token = token.strip().strip("'").strip('"')
         if clean_token.lower().startswith("bearer "):
             clean_token = clean_token[7:].strip()
@@ -50,7 +50,7 @@ class OfficialWhatsAppClient:
             "language": {"code": language}
         }
 
-        # Anexa components apenas se houver parâmetros reais
+        # Anexa components apenas se houver parâmetros
         if parameters:
             template_obj["components"] = [
                 {
@@ -71,7 +71,7 @@ class OfficialWhatsAppClient:
         if idempotency_key:
             headers["X-Idempotency-Key"] = idempotency_key
 
-        # --- Bloco de envio e captura de logs detalhados ---
+        # Bloco de envio e captura de logs detalhados
         try:
             print(f" PAYLOAD ENVIADO PARA META: {payload}")
             async with httpx.AsyncClient(timeout=self.timeout) as client:

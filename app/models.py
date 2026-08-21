@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, func, JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-
+#Aqui guardamos as tabelas do banco de dados, incluindo eventos, contatos, políticas de lembrete, trabalhos de lembrete, tentativas de envio de mensagens, recibos de webhook e eventos de auditoria.
 class Base(DeclarativeBase):
     pass
 

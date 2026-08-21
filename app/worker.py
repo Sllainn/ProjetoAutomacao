@@ -17,22 +17,22 @@ def executar_worker_ciclo():
     """
     db = SessionLocal()
     try:
-        # 1. Seleção concorrente segura utilizando FOR UPDATE SKIP LOCKED
+        # 1. Seleção concorrente utilizando FOR UPDATE SKIP LOCKED
         jobs = db.query(ReminderJob).filter(
             ReminderJob.status.in_(["pending", "retry", "PENDING", "RETRY"]),
             ReminderJob.scheduled_time <= datetime.now(timezone.utc)
         ).with_for_update(skip_locked=True).limit(20).all()
 
         if not jobs:
-            print("Nenhum job pendente encontrado no momento.")
+            print("Nenhum job pendente encontrado.")
             return
 
-        print(f"Encontrados {len(jobs)} job(s) para processar...")
+        print(f"Encontrados {len(jobs)} job(s) para processar.")
 
         for job in jobs:
             correlation_id = f"corr_job_{job.job_id}"
 
-            # Regra 205: Marcar como processing e atualizar attempt_count
+            #  Marcar como processing e atualizar attempt_count
             job.status = "processing"
             job.attempt_count = (job.attempt_count or 0) + 1
             db.commit()
@@ -47,7 +47,7 @@ def executar_worker_ciclo():
             )
 
             try:
-                # Regra 206 & 221: Revalidar se o evento continua ativo
+                # Revalidar se o evento continua ativo
                 evento = db.query(CalendarEvent).filter(CalendarEvent.event_id == job.event_id).first()
 
                 if not evento or evento.status == "cancelled":
@@ -86,7 +86,7 @@ def executar_worker_ciclo():
                 print(f"Disparando WhatsApp para {telefone_destino} | Assunto: {titulo_evento} | Data: {data_evento} às {hora_evento}")
 
                 # Executa o envio assíncrono
-                send_result = asyncio.run(whatsapp_client.send_template(
+                send_result = asyncio.run(whatsapp_client.send_template( #template da meta para enviar avisos 
                     phone_e164=telefone_destino,
                     template_name="aviso_agenda_advogado",
                     language="pt_BR",
@@ -100,7 +100,6 @@ def executar_worker_ciclo():
 
                 duracao_ms = int((time.time() - inicio_chamada) * 1000)
 
-                # Sucesso
                 job.status = "sent"
                 db.commit()
 
@@ -108,7 +107,7 @@ def executar_worker_ciclo():
 
                 registrar_log(
                     event_name="reminder_job_sent",
-                    mensagem=f"Job {job.job_id} enviado com sucesso via WhatsApp WABA.",
+                    mensagem=f"Job {job.job_id} enviado com sucesso via WhatsApp.",
                     correlation_id=correlation_id,
                     calendar_event_id=job.event_id,
                     job_id=str(job.job_id),

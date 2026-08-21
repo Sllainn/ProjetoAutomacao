@@ -12,7 +12,7 @@ def testar_lista_eventos():
     
     print("Buscando os próximos 10 eventos no calendário principal...\n")
     
-    # Passo 159: Executa a chamada do método events().list()
+    # Executa a chamada do método events().list()
     events_result = service.events().list(
         calendarId='primary',
         timeMin=agora,
@@ -24,14 +24,14 @@ def testar_lista_eventos():
     events = events_result.get('items', [])
 
     if not events:
-        print('Nenhum evento futuro encontrado no calendário.')
+        print('Nenhum evento futuro encontrado.')
         return
 
-    print("--- EVENTOS ENCONTRADOS ---")
+    print("EVENTOS ENCONTRADOS")
     for event in events:
         start = event['start'].get('dateTime', event['start'].get('date'))
         summary = event.get('summary', 'Sem título')
-        print(f"📌 Data/Hora: {start} | Evento: {summary}")
+        print(f" Data/Hora: {start} | Evento: {summary}")
 
 if __name__ == '__main__':
     testar_lista_eventos()

@@ -24,7 +24,6 @@ def test_parse_valid_hearing(description, expected_mode):
         start_dt=None,
         timezone_str="UTC"
     )
-    
     # Validações essenciais baseadas na estratégia de testes
     if result["status"] == "success":
         dados = result["data"]
@@ -47,7 +46,7 @@ def test_same_event_creates_jobs_once():
     def simular_criacao_job(ev_id, versao, offset):
         chave = f"{ev_id}|{versao}|{offset}"
         if chave in chaves_geradas:
-            return False # Já existe (idempotente)
+            return False # Já existe idempotente
         chaves_geradas.add(chave)
         return True # Criado com sucesso
 
@@ -60,4 +59,4 @@ def test_same_event_creates_jobs_once():
     assert criado_2 is False
     assert len(chaves_geradas) == 1
     
-    print("✅ Teste unitário de idempotência e parser executado com sucesso!")
+    print(" Teste unitário de idempotência e parser executado com sucesso!")
